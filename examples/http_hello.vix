@@ -1,0 +1,35 @@
+/**
+ *
+ *  @file http_hello.vix
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Gaspard Kirira.
+ *  All rights reserved.
+ *  https://github.com/vixcpp/vixpp
+ *
+ *  Use of this source code is governed by a MIT license
+ *  that can be found in the License file.
+ *
+ *  Vix++
+ *
+ *  @brief Minimal HTTP server example using Vix++ imports.
+ *
+ *  Run:
+ *    vix++ run examples/http_hello.vix
+ *
+ */
+use vix.core;
+
+int main()
+{
+  vix::App app;
+
+  app.get("/", [](vix::Request &, vix::Response &res)
+          { res.json({"message", "Hello from Vix++"}); });
+
+  app.get("/hello", [](const vix::Request &, vix::Response &)
+          { return "Hello from Vix++"; });
+
+  app.run(8080);
+  return 0;
+}

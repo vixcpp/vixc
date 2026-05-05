@@ -1,0 +1,46 @@
+/**
+ *
+ *  @file json_response.vix
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Gaspard Kirira.
+ *  All rights reserved.
+ *  https://github.com/vixcpp/vixpp
+ *
+ *  Use of this source code is governed by a MIT license
+ *  that can be found in the License file.
+ *
+ *  Vix++
+ *
+ *  @brief JSON helpers example using Vix++ imports.
+ *
+ *  This example demonstrates Vix JSON helpers:
+ *  - vix::json::o()
+ *  - vix::json::a()
+ *  - vix::json::kv()
+ *  - vix::json::dumps()
+ *
+ *  Run:
+ *    vix++ run examples/json_response.vix
+ *
+ */
+use vix.json;
+use std.iostream;
+
+int main()
+{
+  using namespace vix::json;
+
+  auto user = o(
+      "id", 42,
+      "name", "Ada",
+      "tags", a("pro", "admin"));
+
+  auto conf = kv({{"host", Json("localhost")},
+                  {"port", Json(8080)}});
+
+  std::cout << dumps(user, 2) << "\n"
+            << dumps(conf, 2) << "\n";
+
+  return 0;
+}

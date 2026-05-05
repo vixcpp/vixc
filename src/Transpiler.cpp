@@ -1,0 +1,324 @@
+/**
+ *
+ *  @file Transpiler.cpp
+ *  @author Gaspard Kirira
+ *
+ *  Copyright 2026, Gaspard Kirira.
+ *  All rights reserved.
+ *  https://github.com/vixcpp/vixpp
+ *
+ *  Use of this source code is governed by a MIT license
+ *  that can be found in the License file.
+ *
+ *  Vix++
+ *
+ */
+
+#include <vixpp/Transpiler.hpp>
+
+#include <algorithm>
+#include <cstddef>
+#include <sstream>
+#include <utility>
+
+namespace vixpp
+{
+  namespace
+  {
+    [[nodiscard]] bool already_imported(
+        const std::vector<ResolvedImport> &imports,
+        const std::string &module)
+    {
+      return std::any_of(
+          imports.begin(),
+          imports.end(),
+          [&module](const ResolvedImport &item)
+          {
+            return item.module == module;
+          });
+    }
+
+    [[nodiscard]] bool begins_with(std::string_view value,
+                                   std::string_view prefix) noexcept
+    {
+      return value.size() >= prefix.size() &&
+             value.substr(0, prefix.size()) == prefix;
+    }
+
+    [[nodiscard]] bool ends_with(std::string_view value,
+                                 std::string_view suffix) noexcept
+    {
+      return value.size() >= suffix.size() &&
+             value.substr(value.size() - suffix.size()) == suffix;
+    }
+  }
+
+  bool TranspileResult::has_code() const noexcept
+  {
+    return !code.empty();
+  }
+
+  Transpiler::Transpiler()
+      : resolver_{}
+  {
+  }
+
+  Transpiler::Transpiler(ImportResolver resolver)
+      : resolver_(std::move(resolver))
+  {
+  }
+
+  TranspileResult Transpiler::transpile(const SourceFile &source,
+                                        DiagnosticBag &diagnostics) const
+  {
+    return transpile_string(
+        source.content(),
+        diagnostics,
+        source.path_string());
+  }
+
+  TranspileResult Transpiler::transpile_string(std::string_view content,
+                                               DiagnosticBag &diagnostics,
+                                               std::string file) const
+  {
+    TranspileResult result{};
+
+    std::ostringstream prefix_body{};
+    std::ostringstream body{};
+
+    std::size_t offset = 0;
+    std::size_t line_number = 1;
+
+    bool seen_non_import_code = false;
+    bool in_block_comment = false;
+
+    while (offset <= content.size())
+    {
+      const std::size_t line_begin = offset;
+      std::size_t line_end = content.find('\n', offset);
+
+      if (line_end == std::string_view::npos)
+      {
+        line_end = content.size();
+      }
+
+      std::string_view line{
+          content.data() + line_begin,
+          line_end - line_begin};
+
+      if (!line.empty() && line.back() == '\r')
+      {
+        line.remove_suffix(1);
+      }
+
+      const std::string_view trimmed = trim(line);
+
+      if (in_block_comment)
+      {
+        prefix_body << line << '\n';
+
+        if (trimmed.find("*/") != std::string_view::npos)
+        {
+          in_block_comment = false;
+        }
+
+        if (line_end == content.size())
+        {
+          break;
+        }
+
+        offset = line_end + 1;
+        ++line_number;
+        continue;
+      }
+
+      if (!seen_non_import_code && begins_with(trimmed, "/*"))
+      {
+        prefix_body << line << '\n';
+
+        if (trimmed.find("*/") == std::string_view::npos)
+        {
+          in_block_comment = true;
+        }
+
+        if (line_end == content.size())
+        {
+          break;
+        }
+
+        offset = line_end + 1;
+        ++line_number;
+        continue;
+      }
+
+      std::string module{};
+
+      if (parse_use_line(line, module))
+      {
+        const SourceRange range{
+            SourcePosition{line_number, 1},
+            SourcePosition{line_number, line.size() + 1}};
+
+        if (seen_non_import_code)
+        {
+          diagnostics.error(
+              "import declarations must appear before regular C++ code",
+              file,
+              range,
+              "move this use declaration to the top of the file");
+
+          body << line << '\n';
+        }
+        else
+        {
+          auto resolved = resolver_.resolve(module, diagnostics, file, range);
+
+          if (resolved.has_value() &&
+              !already_imported(result.imports, resolved->module))
+          {
+            result.imports.push_back(*resolved);
+          }
+        }
+      }
+      else
+      {
+        if (!seen_non_import_code && (is_blank(line) || is_line_comment(line)))
+        {
+          prefix_body << line << '\n';
+        }
+        else
+        {
+          body << line << '\n';
+
+          if (!is_blank(line) && !is_line_comment(line))
+          {
+            seen_non_import_code = true;
+          }
+        }
+      }
+
+      if (line_end == content.size())
+      {
+        break;
+      }
+
+      offset = line_end + 1;
+      ++line_number;
+    }
+
+    std::ostringstream output{};
+
+    output << "// Generated by Vix++. Do not edit directly.\n";
+
+    output << prefix_body.str();
+
+    if (!result.imports.empty())
+    {
+      for (const auto &import_item : result.imports)
+      {
+        output << import_item.include_line() << '\n';
+      }
+
+      output << '\n';
+    }
+
+    output << body.str();
+
+    result.code = output.str();
+
+    return result;
+  }
+
+  bool Transpiler::parse_use_line(std::string_view line,
+                                  std::string &module)
+  {
+    const std::string_view trimmed = trim(line);
+
+    constexpr std::string_view keyword = "use";
+
+    if (trimmed.size() < keyword.size() + 2)
+    {
+      return false;
+    }
+
+    if (trimmed.substr(0, keyword.size()) != keyword)
+    {
+      return false;
+    }
+
+    if (!is_space(trimmed[keyword.size()]))
+    {
+      return false;
+    }
+
+    std::string_view rest = trim(trimmed.substr(keyword.size()));
+
+    if (rest.empty())
+    {
+      return false;
+    }
+
+    if (rest.back() != ';')
+    {
+      return false;
+    }
+
+    rest.remove_suffix(1);
+    rest = trim(rest);
+
+    if (rest.empty())
+    {
+      return false;
+    }
+
+    module = std::string(rest);
+
+    return true;
+  }
+
+  bool Transpiler::is_blank(std::string_view line) noexcept
+  {
+    return trim(line).empty();
+  }
+
+  bool Transpiler::is_line_comment(std::string_view line) noexcept
+  {
+    const std::string_view trimmed = ltrim(line);
+
+    return trimmed.size() >= 2 &&
+           trimmed[0] == '/' &&
+           trimmed[1] == '/';
+  }
+
+  std::string_view Transpiler::trim(std::string_view value) noexcept
+  {
+    value = ltrim(value);
+
+    while (!value.empty() && is_space(value.back()))
+    {
+      value.remove_suffix(1);
+    }
+
+    return value;
+  }
+
+  std::string_view Transpiler::ltrim(std::string_view value) noexcept
+  {
+    while (!value.empty() && is_space(value.front()))
+    {
+      value.remove_prefix(1);
+    }
+
+    return value;
+  }
+
+  bool Transpiler::is_space(char c) noexcept
+  {
+    return c == ' ' ||
+           c == '\t' ||
+           c == '\n' ||
+           c == '\r' ||
+           c == '\f' ||
+           c == '\v';
+  }
+}
