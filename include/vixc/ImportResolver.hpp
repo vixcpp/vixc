@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -13,8 +13,8 @@
  *  Vix++
  *
  */
-#ifndef VIXPP_IMPORT_RESOLVER_HPP
-#define VIXPP_IMPORT_RESOLVER_HPP
+#ifndef VIXC_IMPORT_RESOLVER_HPP
+#define VIXC_IMPORT_RESOLVER_HPP
 
 #include <filesystem>
 #include <optional>
@@ -23,9 +23,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include <vixpp/Diagnostic.hpp>
+#include <vixc/Diagnostic.hpp>
 
-namespace vixpp
+namespace vixc
 {
   /**
    * @brief Describes the kind of C++ include generated from a Vix++ import.

@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -13,17 +13,17 @@
  *  Vix++
  *
  */
-#ifndef VIXPP_RUNNER_HPP
-#define VIXPP_RUNNER_HPP
+#ifndef VIXC_RUNNER_HPP
+#define VIXC_RUNNER_HPP
 
 #include <filesystem>
 #include <string>
 #include <vector>
 
-#include <vixpp/Diagnostic.hpp>
-#include <vixpp/Transpiler.hpp>
+#include <vixc/Diagnostic.hpp>
+#include <vixc/Transpiler.hpp>
 
-namespace vixpp
+namespace vixc
 {
   /**
    * @brief Command requested by the Vix++ CLI.
@@ -43,7 +43,7 @@ namespace vixpp
     RunnerCommand command{RunnerCommand::Run};
     std::filesystem::path input_file{};
     std::vector<std::string> forwarded_args{};
-    std::filesystem::path build_dir{".vix/build/vixpp"};
+    std::filesystem::path build_dir{".vix/build/vixc"};
     std::string vix_binary{"vix"};
     bool keep_generated{true};
   };

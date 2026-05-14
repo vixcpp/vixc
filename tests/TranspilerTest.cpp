@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -14,8 +14,8 @@
  *
  */
 
-#include <vixpp/Diagnostic.hpp>
-#include <vixpp/Transpiler.hpp>
+#include <vixc/Diagnostic.hpp>
+#include <vixc/Transpiler.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -91,8 +91,8 @@ namespace
         "  return 0;\n"
         "}\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "basic.vix");
 
@@ -115,8 +115,8 @@ namespace
         "\n"
         "int main() { return 0; }\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "dups.vix");
 
@@ -134,8 +134,8 @@ namespace
         "\n"
         "int main() { return 0; }\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "comments.vix");
 
@@ -153,8 +153,8 @@ namespace
         "}\n"
         "use vix.http;\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "late.vix");
 
@@ -170,8 +170,8 @@ namespace
         "\n"
         "int main() { return 0; }\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "local.vix");
 
@@ -186,8 +186,8 @@ namespace
         "\n"
         "int main() { return 0; }\n";
 
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::Transpiler transpiler{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::Transpiler transpiler{};
 
     const auto result = transpiler.transpile_string(source, diagnostics, "invalid.vix");
 

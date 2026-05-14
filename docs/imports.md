@@ -266,13 +266,13 @@ vix++ run main.vix
 Vix++ writes:
 
 ```txt
-.vix/build/vixpp/main.generated.cpp
+.vix/build/vixc/main.generated.cpp
 ```
 
 Then delegates to:
 
 ```sh
-vix run .vix/build/vixpp/main.generated.cpp
+vix run .vix/build/vixc/main.generated.cpp
 ```
 
 ## Why not C++20 `import`?

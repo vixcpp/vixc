@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -13,8 +13,8 @@
  *  Vix++
  *
  */
-#ifndef VIXPP_DIAGNOSTIC_HPP
-#define VIXPP_DIAGNOSTIC_HPP
+#ifndef VIXC_DIAGNOSTIC_HPP
+#define VIXC_DIAGNOSTIC_HPP
 
 #include <cstddef>
 #include <iosfwd>
@@ -23,7 +23,7 @@
 #include <string_view>
 #include <vector>
 
-namespace vixpp
+namespace vixc
 {
   /**
    * @brief Severity level of a Vix++ diagnostic message.

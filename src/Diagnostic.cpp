@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -14,13 +14,13 @@
  *
  */
 
-#include <vixpp/Diagnostic.hpp>
+#include <vixc/Diagnostic.hpp>
 
 #include <algorithm>
 #include <ostream>
 #include <utility>
 
-namespace vixpp
+namespace vixc
 {
   bool SourcePosition::valid() const noexcept
   {

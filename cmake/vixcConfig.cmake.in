@@ -1,9 +1,9 @@
-#  @file vixppConfig.cmake.in
+#  @file vixcConfig.cmake.in
 #  @author Gaspard Kirira
 #
 #  Copyright 2026, Gaspard Kirira.
 #  All rights reserved.
-#  https://github.com/vixcpp/vixpp
+#  https://github.com/vixcpp/vixc
 #
 #  Use of this source code is governed by a MIT license
 #  that can be found in the License file.
@@ -14,6 +14,6 @@
 
 @PACKAGE_INIT@
 
-include("${CMAKE_CURRENT_LIST_DIR}/vixppTargets.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/vixcTargets.cmake")
 
-check_required_components(vixpp)
+check_required_components(vixc)

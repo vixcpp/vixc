@@ -22,7 +22,7 @@ main.vix
   ↓
 vix++ transpiler
   ↓
-.vix/build/vixpp/main.generated.cpp
+.vix/build/vixc/main.generated.cpp
   ↓
 vix run/build/check
   ↓
@@ -96,7 +96,7 @@ int main()
 Then it calls:
 
 ```sh
-vix run .vix/build/vixpp/main.generated.cpp
+vix run .vix/build/vixc/main.generated.cpp
 ```
 
 ## Imports
@@ -196,16 +196,17 @@ vix++ build main.vix --out app
 ## Build from source
 
 ```sh
-git clone https://github.com/vixcpp/vixpp
-cd vixpp
-vix build
-ctest --test-dir build --output-on-failure
+git clone https://github.com/vixcpp/vixc
+cd vixc
+
+vix build --build-target all -v
+vix tests
 ```
 
 The binary is generated as `build/vix++`. Run an example:
 
 ```sh
-./build/vix++ run examples/hello.vix
+vix run ./build/vix++ run examples/hello.vix
 ```
 
 ## Examples
@@ -288,8 +289,8 @@ It does not try to become a full new language yet.
 ## Architecture
 
 ```txt
-vixpp/
-├── include/vixpp/
+vixc/
+├── include/vixc/
 │   ├── Diagnostic.hpp
 │   ├── ImportResolver.hpp
 │   ├── SourceFile.hpp
@@ -331,4 +332,4 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 ## Author
 
 Created by Gaspard Kirira \
-Vix.cpp: [https://github.com/vixcpp/vixpp]
+Vix.cpp: [https://github.com/vixcpp/vixc]

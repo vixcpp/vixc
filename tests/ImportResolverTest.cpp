@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -14,8 +14,8 @@
  *
  */
 
-#include <vixpp/Diagnostic.hpp>
-#include <vixpp/ImportResolver.hpp>
+#include <vixc/Diagnostic.hpp>
+#include <vixc/ImportResolver.hpp>
 
 #include <cstdlib>
 #include <iostream>
@@ -54,8 +54,8 @@ namespace
 
   void test_vix_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("vix.http", diagnostics);
 
@@ -74,8 +74,8 @@ namespace
 
   void test_vix_nested_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("vix.http.server", diagnostics);
 
@@ -93,8 +93,8 @@ namespace
 
   void test_std_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("std.vector", diagnostics);
 
@@ -112,8 +112,8 @@ namespace
 
   void test_local_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("local.config", diagnostics);
 
@@ -131,8 +131,8 @@ namespace
 
   void test_invalid_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("vix..http", diagnostics);
 
@@ -142,8 +142,8 @@ namespace
 
   void test_unknown_import()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
     auto resolved = resolver.resolve("unknown.module", diagnostics);
 
@@ -153,10 +153,10 @@ namespace
 
   void test_custom_mapping()
   {
-    vixpp::DiagnosticBag diagnostics{};
-    vixpp::ImportResolver resolver{};
+    vixc::DiagnosticBag diagnostics{};
+    vixc::ImportResolver resolver{};
 
-    resolver.add_mapping("app.config", "app/config.hpp", vixpp::IncludeKind::Local);
+    resolver.add_mapping("app.config", "app/config.hpp", vixc::IncludeKind::Local);
 
     expect_true(resolver.has_mapping("app.config"), "custom mapping should exist");
 

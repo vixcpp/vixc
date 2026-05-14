@@ -20,7 +20,7 @@ main.vix
   ↓
 vix++ transpiler
   ↓
-.vix/build/vixpp/main.generated.cpp
+.vix/build/vixc/main.generated.cpp
   ↓
 vix run/build/check
   ↓
@@ -43,10 +43,10 @@ Available commands: `run`, `build`, `check`, `help`, `version`.
 vix++ run main.vix
 ```
 
-This transpiles `main.vix` into `.vix/build/vixpp/main.generated.cpp`, then delegates to:
+This transpiles `main.vix` into `.vix/build/vixc/main.generated.cpp`, then delegates to:
 
 ```sh
-vix run .vix/build/vixpp/main.generated.cpp
+vix run .vix/build/vixc/main.generated.cpp
 ```
 
 Shortcut:
@@ -66,7 +66,7 @@ vix++ build main.vix
 This transpiles the `.vix` file and delegates to:
 
 ```sh
-vix build .vix/build/vixpp/main.generated.cpp
+vix build .vix/build/vixc/main.generated.cpp
 ```
 
 You can forward Vix build options:
@@ -78,7 +78,7 @@ vix++ build main.vix --out app
 Internally, this becomes:
 
 ```sh
-vix build .vix/build/vixpp/main.generated.cpp --out app
+vix build .vix/build/vixc/main.generated.cpp --out app
 ```
 
 ## Check
@@ -90,7 +90,7 @@ vix++ check main.vix
 This transpiles the `.vix` file and delegates to:
 
 ```sh
-vix check .vix/build/vixpp/main.generated.cpp
+vix check .vix/build/vixc/main.generated.cpp
 ```
 
 ## Help
@@ -129,7 +129,7 @@ Change where generated C++ files are written:
 vix++ run main.vix --build-dir .vix/generated
 ```
 
-Default: `.vix/build/vixpp`
+Default: `.vix/build/vixc`
 
 ## Forwarded arguments
 
@@ -144,7 +144,7 @@ vix++ build main.vix --out app
 Delegates to:
 
 ```sh
-vix build .vix/build/vixpp/main.generated.cpp --out app
+vix build .vix/build/vixc/main.generated.cpp --out app
 ```
 
 You can also use `--` to explicitly forward the remaining arguments:
@@ -156,7 +156,7 @@ vix++ run main.vix -- --port 8080
 Delegates to:
 
 ```sh
-vix run .vix/build/vixpp/main.generated.cpp --port 8080
+vix run .vix/build/vixc/main.generated.cpp --port 8080
 ```
 
 ## Generated files
@@ -170,7 +170,7 @@ vix++ run examples/hello.vix
 Vix++ writes:
 
 ```txt
-.vix/build/vixpp/hello.generated.cpp
+.vix/build/vixc/hello.generated.cpp
 ```
 
 The generated file starts with:

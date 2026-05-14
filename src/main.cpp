@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -14,9 +14,9 @@
  *
  */
 
-#include <vixpp/Diagnostic.hpp>
-#include <vixpp/Runner.hpp>
-#include <vixpp/Version.hpp>
+#include <vixc/Diagnostic.hpp>
+#include <vixc/Runner.hpp>
+#include <vixc/Version.hpp>
 
 #include <filesystem>
 #include <iostream>
@@ -27,10 +27,10 @@ namespace
 {
   void print_version()
   {
-    std::cout << vixpp::product_name() << '\n';
-    std::cout << "  version : " << vixpp::version() << '\n';
+    std::cout << vixc::product_name() << '\n';
+    std::cout << "  version : " << vixc::version() << '\n';
     std::cout << "  author  : Gaspard Kirira\n";
-    std::cout << "  source  : " << vixpp::repository_url() << "\n\n";
+    std::cout << "  source  : " << vixc::repository_url() << "\n\n";
   }
 
   void print_help()
@@ -67,7 +67,7 @@ namespace
         << "  vix++ main.vix\n\n"
 
         << "Source:\n"
-        << "  " << vixpp::repository_url() << "\n\n";
+        << "  " << vixc::repository_url() << "\n\n";
   }
 
   bool is_help_arg(const std::string &arg)
@@ -85,19 +85,19 @@ namespace
     return arg == "run" || arg == "build" || arg == "check";
   }
 
-  vixpp::RunnerCommand parse_command(const std::string &arg)
+  vixc::RunnerCommand parse_command(const std::string &arg)
   {
     if (arg == "build")
     {
-      return vixpp::RunnerCommand::Build;
+      return vixc::RunnerCommand::Build;
     }
 
     if (arg == "check")
     {
-      return vixpp::RunnerCommand::Check;
+      return vixc::RunnerCommand::Check;
     }
 
-    return vixpp::RunnerCommand::Run;
+    return vixc::RunnerCommand::Run;
   }
 
   int fail_with_usage(const std::string &message)
@@ -141,7 +141,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  vixpp::RunnerOptions options{};
+  vixc::RunnerOptions options{};
 
   std::size_t index = 0;
 
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 
     if (maybe_file.extension() == ".vix")
     {
-      options.command = vixpp::RunnerCommand::Run;
+      options.command = vixc::RunnerCommand::Run;
     }
     else
     {
@@ -232,14 +232,14 @@ int main(int argc, char **argv)
     return fail_with_usage("missing input file");
   }
 
-  vixpp::DiagnosticBag diagnostics{};
-  vixpp::Runner runner{};
+  vixc::DiagnosticBag diagnostics{};
+  vixc::Runner runner{};
 
-  const vixpp::RunnerResult result = runner.execute(options, diagnostics);
+  const vixc::RunnerResult result = runner.execute(options, diagnostics);
 
   if (!diagnostics.empty())
   {
-    vixpp::print_diagnostics(std::cerr, diagnostics);
+    vixc::print_diagnostics(std::cerr, diagnostics);
   }
 
   return result.exit_code;

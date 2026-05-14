@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -14,7 +14,7 @@
  *
  */
 
-#include <vixpp/SourceFile.hpp>
+#include <vixc/SourceFile.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -22,7 +22,7 @@
 #include <sstream>
 #include <utility>
 
-namespace vixpp
+namespace vixc
 {
   SourceFile::SourceFile(std::filesystem::path path, std::string content)
       : path_(std::move(path)),

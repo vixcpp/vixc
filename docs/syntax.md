@@ -267,13 +267,13 @@ vix++ run main.vix
 Vix++ generates:
 
 ```txt
-.vix/build/vixpp/main.generated.cpp
+.vix/build/vixc/main.generated.cpp
 ```
 
 Then it delegates to Vix:
 
 ```sh
-vix run .vix/build/vixpp/main.generated.cpp
+vix run .vix/build/vixc/main.generated.cpp
 ```
 
 ## Current MVP syntax

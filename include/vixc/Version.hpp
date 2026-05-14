@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -13,17 +13,17 @@
  *  Vix++
  *
  */
-#ifndef VIXPP_VERSION_HPP
-#define VIXPP_VERSION_HPP
+#ifndef VIXC_VERSION_HPP
+#define VIXC_VERSION_HPP
 
 #include <string_view>
 
-namespace vixpp
+namespace vixc
 {
   /**
    * @brief Returns the current Vix++ version.
    *
-   * The value is provided by the build system through the VIXPP_VERSION
+   * The value is provided by the build system through the VIXC_VERSION
    * compile definition. If the definition is not available, the version
    * falls back to "dev".
    *
@@ -31,8 +31,8 @@ namespace vixpp
    */
   inline constexpr std::string_view version() noexcept
   {
-#ifdef VIXPP_VERSION
-    return VIXPP_VERSION;
+#ifdef VIXC_VERSION
+    return VIXC_VERSION;
 #else
     return "dev";
 #endif
@@ -55,7 +55,7 @@ namespace vixpp
    */
   inline constexpr std::string_view repository_url() noexcept
   {
-    return "https://github.com/vixcpp/vixpp";
+    return "https://github.com/vixcpp/vixc";
   }
 }
 

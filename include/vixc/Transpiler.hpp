@@ -5,7 +5,7 @@
  *
  *  Copyright 2026, Gaspard Kirira.
  *  All rights reserved.
- *  https://github.com/vixcpp/vixpp
+ *  https://github.com/vixcpp/vixc
  *
  *  Use of this source code is governed by a MIT license
  *  that can be found in the License file.
@@ -13,18 +13,18 @@
  *  Vix++
  *
  */
-#ifndef VIXPP_TRANSPILER_HPP
-#define VIXPP_TRANSPILER_HPP
+#ifndef VIXC_TRANSPILER_HPP
+#define VIXC_TRANSPILER_HPP
 
 #include <string>
 #include <string_view>
 #include <vector>
 
-#include <vixpp/Diagnostic.hpp>
-#include <vixpp/ImportResolver.hpp>
-#include <vixpp/SourceFile.hpp>
+#include <vixc/Diagnostic.hpp>
+#include <vixc/ImportResolver.hpp>
+#include <vixc/SourceFile.hpp>
 
-namespace vixpp
+namespace vixc
 {
   /**
    * @brief Result produced by the Vix++ transpiler.

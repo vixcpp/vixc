@@ -79,7 +79,7 @@ main.vix
   ↓
 vix++ transpiler
   ↓
-.vix/build/vixpp/main.generated.cpp
+.vix/build/vixc/main.generated.cpp
   ↓
 vix run/build/check
   ↓

@@ -3,7 +3,7 @@
 #
 #  Copyright 2026, Gaspard Kirira.
 #  All rights reserved.
-#  https://github.com/vixcpp/vixpp
+#  https://github.com/vixcpp/vixc
 #
 #  Use of this source code is governed by a MIT license
 #  that can be found in the License file.
@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-project(vixpp VERSION 0.1.0 LANGUAGES CXX)
+project(vixc VERSION 0.1.0 LANGUAGES CXX)
 
 include(GNUInstallDirs)
 include(CheckCXXCompilerFlag)
@@ -23,13 +23,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(VIXPP_ENABLE_LTO "Enable LTO in Release builds" OFF)
-option(VIXPP_BUILD_TESTS "Build Vix++ tests" ON)
+option(VIXC_ENABLE_LTO "Enable LTO in Release builds" OFF)
+option(VIXC_BUILD_TESTS "Build Vix++ tests" ON)
 
 # ----------------------------------------------------
 # Sources
 # ----------------------------------------------------
-set(VIXPP_CORE_SOURCES
+set(VIXC_CORE_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/Diagnostic.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/ImportResolver.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceFile.cpp"
@@ -37,30 +37,30 @@ set(VIXPP_CORE_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/Runner.cpp"
 )
 
-add_library(vixpp_core STATIC ${VIXPP_CORE_SOURCES})
-add_library(vixpp::core ALIAS vixpp_core)
+add_library(vixc_core STATIC ${VIXC_CORE_SOURCES})
+add_library(vixc::core ALIAS vixc_core)
 
-target_include_directories(vixpp_core PUBLIC
+target_include_directories(vixc_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-add_executable(vixpp_cli
+add_executable(vixc_cli
   "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp"
 )
 
-add_executable(vixpp::cli ALIAS vixpp_cli)
+add_executable(vixc::cli ALIAS vixc_cli)
 
-target_link_libraries(vixpp_cli PRIVATE
-  vixpp::core
+target_link_libraries(vixc_cli PRIVATE
+  vixc::core
 )
 
 # ----------------------------------------------------
 # Compiler warnings
 # ----------------------------------------------------
-function(vixpp_add_flag_if_supported target flag)
+function(vixc_add_flag_if_supported target flag)
   string(REGEX REPLACE "[^A-Za-z0-9]" "_" flag_var "${flag}")
-  set(test_var "HAVE_VIXPP_${target}_${flag_var}")
+  set(test_var "HAVE_VIXC_${target}_${flag_var}")
 
   check_cxx_compiler_flag("${flag}" ${test_var})
 
@@ -69,30 +69,30 @@ function(vixpp_add_flag_if_supported target flag)
   endif()
 endfunction()
 
-foreach(_vixpp_target IN ITEMS vixpp_core vixpp_cli)
+foreach(_vixc_target IN ITEMS vixc_core vixc_cli)
   if (MSVC)
-    vixpp_add_flag_if_supported(${_vixpp_target} /W4)
-    vixpp_add_flag_if_supported(${_vixpp_target} /permissive-)
+    vixc_add_flag_if_supported(${_vixc_target} /W4)
+    vixc_add_flag_if_supported(${_vixc_target} /permissive-)
   else()
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wall)
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wextra)
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wshadow)
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wconversion)
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wformat=2)
-    vixpp_add_flag_if_supported(${_vixpp_target} -Wpedantic)
+    vixc_add_flag_if_supported(${_vixc_target} -Wall)
+    vixc_add_flag_if_supported(${_vixc_target} -Wextra)
+    vixc_add_flag_if_supported(${_vixc_target} -Wshadow)
+    vixc_add_flag_if_supported(${_vixc_target} -Wconversion)
+    vixc_add_flag_if_supported(${_vixc_target} -Wformat=2)
+    vixc_add_flag_if_supported(${_vixc_target} -Wpedantic)
   endif()
 endforeach()
 
 # ----------------------------------------------------
 # Version string
 # ----------------------------------------------------
-set(_VIXPP_VERSION "dev")
+set(_VIXC_VERSION "dev")
 
-if (DEFINED VIXPP_VERSION AND NOT "${VIXPP_VERSION}" STREQUAL "")
-  set(_VIXPP_VERSION "${VIXPP_VERSION}")
+if (DEFINED VIXC_VERSION AND NOT "${VIXC_VERSION}" STREQUAL "")
+  set(_VIXC_VERSION "${VIXC_VERSION}")
 
-elseif (DEFINED ENV{VIXPP_VERSION} AND NOT "$ENV{VIXPP_VERSION}" STREQUAL "")
-  set(_VIXPP_VERSION "$ENV{VIXPP_VERSION}")
+elseif (DEFINED ENV{VIXC_VERSION} AND NOT "$ENV{VIXC_VERSION}" STREQUAL "")
+  set(_VIXC_VERSION "$ENV{VIXC_VERSION}")
 
 else()
   find_package(Git QUIET)
@@ -107,42 +107,42 @@ else()
     )
 
     if (_GIT_DESCRIBE)
-      set(_VIXPP_VERSION "${_GIT_DESCRIBE}")
+      set(_VIXC_VERSION "${_GIT_DESCRIBE}")
     endif()
   endif()
 
-  if ("${_VIXPP_VERSION}" STREQUAL "dev" AND DEFINED PROJECT_VERSION)
-    set(_VIXPP_VERSION "v${PROJECT_VERSION}")
+  if ("${_VIXC_VERSION}" STREQUAL "dev" AND DEFINED PROJECT_VERSION)
+    set(_VIXC_VERSION "v${PROJECT_VERSION}")
   endif()
 endif()
 
-message(STATUS "Vix++ version: ${_VIXPP_VERSION}")
+message(STATUS "Vix++ version: ${_VIXC_VERSION}")
 
-target_compile_definitions(vixpp_core PUBLIC
-  VIXPP_VERSION="${_VIXPP_VERSION}"
+target_compile_definitions(vixc_core PUBLIC
+  VIXC_VERSION="${_VIXC_VERSION}"
 )
 
 # ----------------------------------------------------
 # LTO
 # ----------------------------------------------------
-if (VIXPP_ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
+if (VIXC_ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
   include(CheckIPOSupported)
 
   check_ipo_supported(RESULT _ipo_ok OUTPUT _ipo_msg)
 
   if (_ipo_ok)
-    set_property(TARGET vixpp_core PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-    set_property(TARGET vixpp_cli PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_property(TARGET vixc_core PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_property(TARGET vixc_cli PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
   else()
-    message(WARNING "[vixpp] IPO/LTO not supported: ${_ipo_msg}")
+    message(WARNING "[vixc] IPO/LTO not supported: ${_ipo_msg}")
   endif()
 endif()
 
 # ----------------------------------------------------
 # Output name
 # ----------------------------------------------------
-set_target_properties(vixpp_cli PROPERTIES
-  OUTPUT_NAME "vix++"
+set_target_properties(vixc_cli PROPERTIES
+  OUTPUT_NAME "vixc"
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
   RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
   RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}"
@@ -152,7 +152,7 @@ set_target_properties(vixpp_cli PROPERTIES
 # ----------------------------------------------------
 # Tests
 # ----------------------------------------------------
-if (VIXPP_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
+if (VIXC_BUILD_TESTS AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt")
   enable_testing()
   add_subdirectory(tests)
 endif()
@@ -160,8 +160,8 @@ endif()
 # ----------------------------------------------------
 # Install
 # ----------------------------------------------------
-install(TARGETS vixpp_core vixpp_cli
-  EXPORT vixppTargets
+install(TARGETS vixc_core vixc_cli
+  EXPORT vixcTargets
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -171,10 +171,10 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/"
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-install(EXPORT vixppTargets
-  FILE vixppTargets.cmake
-  NAMESPACE vixpp::
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixpp
+install(EXPORT vixcTargets
+  FILE vixcTargets.cmake
+  NAMESPACE vixc::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixc
 )
 
 # ----------------------------------------------------
@@ -183,22 +183,22 @@ install(EXPORT vixppTargets
 include(CMakePackageConfigHelpers)
 
 configure_package_config_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vixppConfig.cmake.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/vixppConfig.cmake"
-  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixpp
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vixcConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vixcConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixc
 )
 
 write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/vixppConfigVersion.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/vixcConfigVersion.cmake"
   VERSION ${PROJECT_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/vixppConfig.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/vixppConfigVersion.cmake"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixpp
+  "${CMAKE_CURRENT_BINARY_DIR}/vixcConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/vixcConfigVersion.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vixc
 )
 
 message(STATUS "Vix++ configured.")
-message(STATUS "Executable will be: ${CMAKE_BINARY_DIR}/vix++")
+message(STATUS "Executable will be: ${CMAKE_BINARY_DIR}/vixc")
