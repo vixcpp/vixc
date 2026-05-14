@@ -261,7 +261,7 @@ int main()
 When running:
 
 ```sh
-vix++ run main.vix
+vixc run main.vix
 ```
 
 Vix++ generates:

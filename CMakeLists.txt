@@ -35,6 +35,9 @@ set(VIXC_CORE_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/src/SourceFile.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/Transpiler.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/Runner.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/AppManifest.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/AppCMakeGenerator.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/AppRunner.cpp"
 )
 
 add_library(vixc_core STATIC ${VIXC_CORE_SOURCES})

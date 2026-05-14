@@ -40,36 +40,42 @@ namespace
         << "Thin language layer for Vix-powered C++ applications.\n\n"
 
         << "Usage:\n"
-        << "  vix++ <command> <file.vix> [options]\n"
-        << "  vix++ run <file.vix> [-- args]\n"
-        << "  vix++ build <file.vix> [options]\n"
-        << "  vix++ check <file.vix> [options]\n"
-        << "  vix++ <file.vix>\n\n"
+        << "  vixc <command> <file.vix> [options]\n"
+        << "  vixc run <file.vix> [-- args]\n"
+        << "  vixc build <file.vix> [options]\n"
+        << "  vixc check <file.vix> [options]\n"
+        << "  vixc <file.vix>\n"
+        << "  vixc run\n"
+        << "  vixc build\n"
+        << "  vixc check\n\n"
 
         << "Commands:\n"
-        << "  run       Transpile a .vix file and run it through vix\n"
-        << "  build     Transpile a .vix file and build it through vix\n"
-        << "  check     Transpile a .vix file and validate it through vix\n"
+        << "  run       Transpile and run a .vix file or vix.app project through vix\n"
+        << "  build     Transpile and build a .vix file or vix.app project through vix\n"
+        << "  check     Transpile and validate a .vix file or vix.app project through vix\n"
         << "  help      Show this help message\n"
         << "  version   Show version information\n\n"
 
         << "Options:\n"
         << "  --vix <path>       Path to the vix binary. Default: vix\n"
         << "  --build-dir <dir>  Directory for generated C++ files\n"
-        << "                     Default: .vix/build/vixpp\n"
+        << "                     Default: .vix/build/vixc\n"
         << "  -h, --help         Show help\n"
         << "  -v, --version      Show version\n\n"
 
         << "Examples:\n"
-        << "  vix++ run main.vix\n"
-        << "  vix++ build main.vix --out app\n"
-        << "  vix++ check main.vix\n"
-        << "  vix++ main.vix\n\n"
+        << "  vixc run main.vix\n"
+        << "  vixc build main.vix --out app\n"
+        << "  vixc check main.vix\n"
+        << "  vixc main.vix\n"
+        << "  vixc run\n\n"
+
+        << "Project mode:\n"
+        << "  When vix.app exists, vixc run, build, and check use project mode.\n\n"
 
         << "Source:\n"
         << "  " << vixc::repository_url() << "\n\n";
   }
-
   bool is_help_arg(const std::string &arg)
   {
     return arg == "help" || arg == "-h" || arg == "--help";
@@ -102,8 +108,8 @@ namespace
 
   int fail_with_usage(const std::string &message)
   {
-    std::cerr << "vix++: error: " << message << '\n';
-    std::cerr << "run 'vix++ help' for usage.\n";
+    std::cerr << "vixc: error: " << message << '\n';
+    std::cerr << "run 'vixc help' for usage.\n";
     return 1;
   }
 }
@@ -229,7 +235,17 @@ int main(int argc, char **argv)
 
   if (options.input_file.empty())
   {
-    return fail_with_usage("missing input file");
+    const std::filesystem::path app_manifest = std::filesystem::current_path() / "vix.app";
+
+    if (std::filesystem::exists(app_manifest))
+    {
+      options.project_mode = true;
+      options.project_dir = std::filesystem::current_path();
+    }
+    else
+    {
+      return fail_with_usage("missing input file or vix.app");
+    }
   }
 
   vixc::DiagnosticBag diagnostics{};

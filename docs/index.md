@@ -77,7 +77,7 @@ The pipeline is:
 ```txt
 main.vix
   ↓
-vix++ transpiler
+vixc transpiler
   ↓
 .vix/build/vixc/main.generated.cpp
   ↓
@@ -103,28 +103,28 @@ Example: `main.vix`
 Run a Vix++ file:
 
 ```sh
-vix++ run main.vix
+vixc run main.vix
 ```
 
 Build a Vix++ file:
 
 ```sh
-vix++ build main.vix
+vixc build main.vix
 ```
 
 Check a Vix++ file:
 
 ```sh
-vix++ check main.vix
+vixc check main.vix
 ```
 
 Shortcut:
 
 ```sh
-vix++ main.vix
+vixc main.vix
 ```
 
-This is equivalent to `vix++ run main.vix`.
+This is equivalent to `vixc run main.vix`.
 
 ## Imports
 

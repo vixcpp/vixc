@@ -260,7 +260,7 @@ Import names may contain: letters, digits, underscores, and dots between segment
 For:
 
 ```sh
-vix++ run main.vix
+vixc run main.vix
 ```
 
 Vix++ writes:

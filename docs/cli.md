@@ -1,6 +1,6 @@
 # Vix++ CLI
 
-The Vix++ CLI is exposed through the `vix++` command.
+The Vix++ CLI is exposed through the `vixc` command.
 
 It reads `.vix` files, transpiles them to standard C++, then delegates the build or execution to the existing `vix` CLI.
 
@@ -10,7 +10,7 @@ Vix++ does not replace Vix.
 
 ```txt
 vix     -> runtime and build engine for standard C++
-vix++   -> language frontend for .vix files
+vixc   -> language frontend for .vix files
 ```
 
 The pipeline is:
@@ -18,7 +18,7 @@ The pipeline is:
 ```txt
 main.vix
   ↓
-vix++ transpiler
+vixc transpiler
   ↓
 .vix/build/vixc/main.generated.cpp
   ↓
@@ -27,12 +27,12 @@ vix run/build/check
 binary
 ```
 
-This means `vix++` needs the `vix` command to be installed and available in `PATH`.
+This means `vixc` needs the `vix` command to be installed and available in `PATH`.
 
 ## Usage
 
 ```sh
-vix++ <command> <file.vix> [options]
+vixc <command> <file.vix> [options]
 ```
 
 Available commands: `run`, `build`, `check`, `help`, `version`.
@@ -40,7 +40,7 @@ Available commands: `run`, `build`, `check`, `help`, `version`.
 ## Run
 
 ```sh
-vix++ run main.vix
+vixc run main.vix
 ```
 
 This transpiles `main.vix` into `.vix/build/vixc/main.generated.cpp`, then delegates to:
@@ -52,7 +52,7 @@ vix run .vix/build/vixc/main.generated.cpp
 Shortcut:
 
 ```sh
-vix++ main.vix
+vixc main.vix
 ```
 
 This is equivalent to `vix++ run main.vix`.
@@ -60,7 +60,7 @@ This is equivalent to `vix++ run main.vix`.
 ## Build
 
 ```sh
-vix++ build main.vix
+vixc build main.vix
 ```
 
 This transpiles the `.vix` file and delegates to:
@@ -72,7 +72,7 @@ vix build .vix/build/vixc/main.generated.cpp
 You can forward Vix build options:
 
 ```sh
-vix++ build main.vix --out app
+vixc build main.vix --out app
 ```
 
 Internally, this becomes:
@@ -96,18 +96,18 @@ vix check .vix/build/vixc/main.generated.cpp
 ## Help
 
 ```sh
-vix++ help
+vixc help
 ```
 
-Aliases: `vix++ -h`, `vix++ --help`
+Aliases: `vixc -h`, `vixc --help`
 
 ## Version
 
 ```sh
-vix++ version
+vixc version
 ```
 
-Aliases: `vix++ -v`, `vix++ --version`
+Aliases: `vixc -v`, `vix++ --version`
 
 ## Options
 
@@ -116,7 +116,7 @@ Aliases: `vix++ -v`, `vix++ --version`
 Use a custom path to the `vix` binary:
 
 ```sh
-vix++ run main.vix --vix /usr/local/bin/vix
+vixc run main.vix --vix /usr/local/bin/vix
 ```
 
 Default: `vix`
@@ -126,7 +126,7 @@ Default: `vix`
 Change where generated C++ files are written:
 
 ```sh
-vix++ run main.vix --build-dir .vix/generated
+vixc run main.vix --build-dir .vix/generated
 ```
 
 Default: `.vix/build/vixc`
@@ -138,7 +138,7 @@ Any argument that is not a Vix++ option is forwarded to Vix after the generated 
 Example:
 
 ```sh
-vix++ build main.vix --out app
+vixc build main.vix --out app
 ```
 
 Delegates to:
@@ -150,7 +150,7 @@ vix build .vix/build/vixc/main.generated.cpp --out app
 You can also use `--` to explicitly forward the remaining arguments:
 
 ```sh
-vix++ run main.vix -- --port 8080
+vixc run main.vix -- --port 8080
 ```
 
 Delegates to:
@@ -164,7 +164,7 @@ vix run .vix/build/vixc/main.generated.cpp --port 8080
 For this command:
 
 ```sh
-vix++ run examples/hello.vix
+vixc run examples/hello.vix
 ```
 
 Vix++ writes:
@@ -211,7 +211,7 @@ int main()
 Command:
 
 ```sh
-vix++ run examples/hello.vix
+vixc run examples/hello.vix
 ```
 
 ## Error cases
@@ -219,20 +219,20 @@ vix++ run examples/hello.vix
 ### Missing input file
 
 ```sh
-vix++ run
+vixc run
 ```
 
 Output:
 
 ```txt
-vix++: error: missing input file
-run 'vix++ help' for usage.
+vixc: error: missing input file
+run 'vixc help' for usage.
 ```
 
 ### Invalid file extension
 
 ```sh
-vix++ run main.cpp
+vixc run main.cpp
 ```
 
 Output:
@@ -265,7 +265,7 @@ hint: move this use declaration to the top of the file
 If `vix` is not installed or not available in `PATH`, the delegated command fails. Use:
 
 ```sh
-vix++ run main.vix --vix /path/to/vix
+vixc run main.vix --vix /path/to/vix
 ```
 
 ## Current behavior
@@ -291,9 +291,9 @@ Those features can be added later while keeping the first CLI stable.
 
 ## Design rule
 
-`vix++` should stay focused.
+`vixc` should stay focused.
 
 ```txt
-vix++ handles the language layer.
+vixc handles the language layer.
 vix handles the build and runtime layer.
 ```

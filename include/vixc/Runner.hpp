@@ -46,6 +46,19 @@ namespace vixc
     std::filesystem::path build_dir{".vix/build/vixc"};
     std::string vix_binary{"vix"};
     bool keep_generated{true};
+
+    /**
+     * @brief Enables vix.app project mode.
+     *
+     * When this option is true, Runner prepares the project from vix.app
+     * instead of requiring a single .vix input file.
+     */
+    bool project_mode{false};
+
+    /**
+     * @brief Project directory used when project mode is enabled.
+     */
+    std::filesystem::path project_dir{"."};
   };
 
   /**
@@ -67,8 +80,11 @@ namespace vixc
   /**
    * @brief Runs Vix++ files by transpiling them to C++ and delegating to Vix.
    *
-   * Runner does not compile C++ by itself. It loads a .vix file, generates a
-   * standard C++ file, then calls the installed Vix CLI.
+   * Runner supports two modes:
+   *
+   * - single-file mode: transpile one .vix file and call Vix on the generated C++ file.
+   * - project mode: load vix.app, transpile its .vix sources, generate an internal
+   *   CMake project, then call Vix from the generated project directory.
    */
   class Runner
   {
@@ -99,6 +115,17 @@ namespace vixc
     Transpiler transpiler_{};
 
     /**
+     * @brief Executes vix.app project mode.
+     *
+     * @param options Runner options.
+     * @param diagnostics Diagnostic collection used for reporting errors.
+     * @return Runner result containing the delegated Vix exit code.
+     */
+    [[nodiscard]] RunnerResult execute_project(
+        const RunnerOptions &options,
+        DiagnosticBag &diagnostics) const;
+
+    /**
      * @brief Writes generated C++ code to the configured build directory.
      *
      * @param input_file Original .vix input file.
@@ -114,7 +141,7 @@ namespace vixc
         DiagnosticBag &diagnostics) const;
 
     /**
-     * @brief Builds the command line used to call Vix.
+     * @brief Builds the command line used to call Vix for single-file mode.
      *
      * @param options Runner options.
      * @param generated_file Generated C++ file path.
@@ -123,6 +150,17 @@ namespace vixc
     [[nodiscard]] static std::string build_vix_command(
         const RunnerOptions &options,
         const std::filesystem::path &generated_file);
+
+    /**
+     * @brief Builds the command line used to call Vix for project mode.
+     *
+     * @param options Runner options.
+     * @param project_dir Directory where Vix should be executed.
+     * @return Full command line string.
+     */
+    [[nodiscard]] static std::string build_project_vix_command(
+        const RunnerOptions &options,
+        const std::filesystem::path &project_dir);
 
     /**
      * @brief Converts a runner command to the equivalent Vix command.

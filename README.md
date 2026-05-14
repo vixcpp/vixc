@@ -77,7 +77,7 @@ int main()
 Run it:
 
 ```sh
-vix++ run main.vix
+vixc run main.vix
 ```
 
 Vix++ generates:
@@ -167,30 +167,30 @@ Rules:
 ## CLI
 
 ```sh
-vix++ run main.vix        # run a .vix file
-vix++ main.vix            # shortcut for run
-vix++ build main.vix      # build a .vix file
-vix++ check main.vix      # check a .vix file
-vix++ help                # show help
-vix++ version             # show version
+vixc run main.vix        # run a .vix file
+vixc main.vix            # shortcut for run
+vixc build main.vix      # build a .vix file
+vixc check main.vix      # check a .vix file
+vixc help                # show help
+vixc version             # show version
 ```
 
 Use a custom Vix binary:
 
 ```sh
-vix++ run main.vix --vix /usr/local/bin/vix
+vixc run main.vix --vix /usr/local/bin/vix
 ```
 
 Use a custom generated output directory:
 
 ```sh
-vix++ run main.vix --build-dir .vix/generated
+vixc run main.vix --build-dir .vix/generated
 ```
 
 Forward arguments to Vix:
 
 ```sh
-vix++ build main.vix --out app
+vixc build main.vix --out app
 ```
 
 ## Build from source
@@ -203,10 +203,10 @@ vix build --build-target all -v
 vix tests
 ```
 
-The binary is generated as `build/vix++`. Run an example:
+The binary is generated as `build/vixc`. Run an example:
 
 ```sh
-vix run ./build/vix++ run examples/hello.vix
+vix run ./build/vixc run examples/hello.vix
 ```
 
 ## Examples

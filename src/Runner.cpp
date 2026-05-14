@@ -15,6 +15,7 @@
  */
 
 #include <vixc/Runner.hpp>
+#include <vixc/AppRunner.hpp>
 
 #include <cstdlib>
 #include <fstream>
@@ -43,13 +44,18 @@ namespace vixc
   RunnerResult Runner::execute(const RunnerOptions &options,
                                DiagnosticBag &diagnostics) const
   {
+    if (options.project_mode)
+    {
+      return execute_project(options, diagnostics);
+    }
+
     if (options.input_file.empty())
     {
       diagnostics.error(
           "missing input file",
           {},
           {},
-          "usage: vix++ run <file.vix>");
+          "usage: vixc run <file.vix> or vixc run inside a vix.app project");
 
       return RunnerResult{1, {}};
     }
@@ -92,6 +98,35 @@ namespace vixc
 
     const std::string command = build_vix_command(options, generated_file);
     const int exit_code = std::system(command.c_str());
+
+    return RunnerResult{exit_code, generated_file};
+  }
+
+  RunnerResult Runner::execute_project(const RunnerOptions &options,
+                                       DiagnosticBag &diagnostics) const
+  {
+    const AppRunnerResult app_result =
+        prepare_app_project(
+            options.project_dir,
+            transpiler_,
+            diagnostics);
+
+    if (!app_result.success() || diagnostics.has_errors())
+    {
+      return RunnerResult{1, {}};
+    }
+
+    const std::string command =
+        build_project_vix_command(options, app_result.cmake_source_dir);
+
+    const int exit_code = std::system(command.c_str());
+
+    std::filesystem::path generated_file{};
+
+    if (!app_result.generated_files.empty())
+    {
+      generated_file = app_result.generated_files.front();
+    }
 
     return RunnerResult{exit_code, generated_file};
   }
@@ -163,6 +198,34 @@ namespace vixc
             << to_vix_command(options.command)
             << ' '
             << quote_arg(path_arg(generated_file));
+
+    for (const auto &arg : options.forwarded_args)
+    {
+      command << ' ' << quote_arg(arg);
+    }
+
+    return command.str();
+  }
+
+  std::string Runner::build_project_vix_command(
+      const RunnerOptions &options,
+      const std::filesystem::path &project_dir)
+  {
+    std::ostringstream command{};
+
+#ifdef _WIN32
+    command << "cd /d "
+            << quote_arg(path_arg(project_dir))
+            << " && ";
+#else
+    command << "cd "
+            << quote_arg(path_arg(project_dir))
+            << " && ";
+#endif
+
+    command << quote_arg(options.vix_binary)
+            << ' '
+            << to_vix_command(options.command);
 
     for (const auto &arg : options.forwarded_args)
     {
