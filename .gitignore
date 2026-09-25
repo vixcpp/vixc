@@ -1,0 +1,17 @@
+build/
+build-*/
+.cache/
+compile_commands.json
+
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+.idea/
+.vscode/
+.DS_Store
+notes/
