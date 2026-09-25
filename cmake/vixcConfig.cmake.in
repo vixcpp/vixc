@@ -1,0 +1,19 @@
+#
+#  VixC Package Configuration
+#
+#  Copyright (c) 2026 Gaspard Kirira.
+#  https://github.com/vixcpp/vixc
+#
+#  Licensed under the MIT License.
+#  See LICENSE in the project root for license information.
+#
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+include(
+  "${CMAKE_CURRENT_LIST_DIR}/vixcTargets.cmake"
+)
+
+check_required_components(vixc)
