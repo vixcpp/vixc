@@ -182,7 +182,30 @@ namespace vixc::syntax
       advance();
     }
 
-    return make_cxx_region(begin, position_);
+    const SyntaxNode region =
+        make_cxx_region(begin, position_);
+
+    if (!region.range().valid())
+      return region;
+
+    SourceLocation begin_location = region.range().begin();
+    SourceLocation end = region.range().end();
+
+    /*
+     * When a C++ region follows a VixC construct, it owns the intervening
+    * trivia as well. The preceding token ends at the construct boundary.
+     */
+    if (begin > 0)
+      begin_location = tokens_[begin - 1].range().end();
+
+    if (position_ < tokens_.size())
+      end = current().range().begin();
+
+    return SyntaxNode{
+        SyntaxKind::CxxRegion,
+        SourceRange{
+            begin_location,
+            end}};
   }
 
   SyntaxNode Parser::parse_fail_statement()

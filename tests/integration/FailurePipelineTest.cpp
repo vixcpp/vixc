@@ -22,23 +22,6 @@
 
 namespace
 {
-  bool has_diagnostic_code(
-      const vixc::FrontendResult &result,
-      std::string_view code)
-  {
-    for (const vixc::Diagnostic &diagnostic :
-         result.diagnostics())
-    {
-      if (
-          diagnostic.has_code() && diagnostic.code() == code)
-      {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   void test_plain_cpp_analyze_pipeline()
   {
     const std::string source =

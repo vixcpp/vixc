@@ -172,10 +172,11 @@ namespace vixc::backends::cxx
     if (generated_begin == generated_end)
       return;
 
-    source_map_.add(
-        generated_begin,
-        generated_end,
-        original_range);
+    static_cast<void>(
+        source_map_.add(
+            generated_begin,
+            generated_end,
+            original_range));
   }
 
 } // namespace vixc::backends::cxx

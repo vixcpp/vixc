@@ -110,9 +110,10 @@ namespace
          index < 128;
          ++index)
     {
-      manager.add_source(
-          "generated-" + std::to_string(index) + ".cpp",
-          "int value = " + std::to_string(index) + ";");
+      static_cast<void>(
+          manager.add_source(
+              "generated-" + std::to_string(index) + ".cpp",
+              "int value = " + std::to_string(index) + ";"));
     }
 
     const vixc::source::SourceFile *first_after =

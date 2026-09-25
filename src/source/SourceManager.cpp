@@ -23,6 +23,13 @@
 namespace vixc::source
 {
 
+  SourceManager::SourceManager() = default;
+
+  SourceManager::SourceManager(SourceManager &&) noexcept = default;
+
+  SourceManager &
+  SourceManager::operator=(SourceManager &&) noexcept = default;
+
   SourceManager::~SourceManager() = default;
 
   SourceId

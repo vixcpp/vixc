@@ -349,7 +349,7 @@ namespace
             diagnostics);
 
     assert(!diagnostics.has_errors());
-    assert(root.child_count() == 1);
+    assert(root.child_count() == 2);
 
     const vixc::syntax::SyntaxNode *try_expression =
         root.child(0);
@@ -375,6 +375,13 @@ namespace
         source_text(
             source,
             try_expression->range()) == "try read()");
+
+    const vixc::syntax::SyntaxNode *suffix =
+        root.child(1);
+
+    assert(suffix != nullptr);
+    assert(suffix->kind() == vixc::syntax::SyntaxKind::CxxRegion);
+    assert(source_text(source, suffix->range()) == ";");
   }
 
   void test_try_expression_inside_cpp_region()

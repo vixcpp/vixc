@@ -877,10 +877,15 @@ namespace
 
 int main()
 {
+  test_ir_kind_names();
+  test_failure_kind_classification();
+  test_cxx_region_kind_classification();
+
   test_default_outcome_is_success_only();
   test_failure_aware_outcome();
 
   test_outcome_always_allows_success();
+  test_default_outcome_does_not_enable_optional_states();
 
   test_outcome_failure_type_must_be_non_empty();
   test_outcome_failure_type_must_use_same_source();

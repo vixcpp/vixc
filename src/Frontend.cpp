@@ -26,14 +26,12 @@
 #include "lowering/LoweringPipeline.hpp"
 #include "semantic/SemanticAnalyzer.hpp"
 #include "semantic/SemanticContext.hpp"
+#include "source/SourceFile.hpp"
 #include "source/SourceManager.hpp"
 #include "syntax/Lexer.hpp"
 #include "syntax/Parser.hpp"
 #include "syntax/SyntaxKind.hpp"
 #include "syntax/SyntaxNode.hpp"
-#include "source/SourceFile.hpp"
-#include "source/SourceManager.hpp"
-
 #include <vixc/DiagnosticSeverity.hpp>
 
 #include <memory>

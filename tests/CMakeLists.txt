@@ -35,6 +35,8 @@ function(vixc_add_test target source)
       CXX_EXTENSIONS OFF
   )
 
+  vixc_configure_target(${target})
+
   add_test(
     NAME ${target}
     COMMAND ${target}

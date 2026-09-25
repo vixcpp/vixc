@@ -472,9 +472,10 @@ namespace
     vixc::source::SourceManager sources;
     vixc::diagnostics::DiagnosticEngine diagnostics;
 
-    sources.add_source(
-        "failure.vix",
-        "Error");
+    static_cast<void>(
+        sources.add_source(
+            "failure.vix",
+            "Error"));
 
     vixc::semantic::SemanticContext context{
         sources,

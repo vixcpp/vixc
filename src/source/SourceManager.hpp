@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <vixc/SourceLocation.hpp>
+
 namespace vixc::source
 {
 
@@ -36,7 +38,7 @@ namespace vixc::source
    * SourceId values are local to a SourceManager instance. An identifier from
    * one manager must not be used to access another manager.
    */
-  using SourceId = std::size_t;
+  using SourceId = ::vixc::SourceId;
 
   /**
    * @brief Owns and identifies the source files processed by the frontend.
@@ -67,13 +69,13 @@ namespace vixc::source
     /**
      * @brief Creates an empty source manager.
      */
-    SourceManager() = default;
+    SourceManager();
 
     SourceManager(const SourceManager &) = delete;
     SourceManager &operator=(const SourceManager &) = delete;
 
-    SourceManager(SourceManager &&) noexcept = default;
-    SourceManager &operator=(SourceManager &&) noexcept = default;
+    SourceManager(SourceManager &&) noexcept;
+    SourceManager &operator=(SourceManager &&) noexcept;
 
     /**
      * @brief Destroys the manager and all source files owned by it.

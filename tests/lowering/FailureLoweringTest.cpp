@@ -156,6 +156,10 @@ namespace
         context};
 
     Outcome outcome{
+        vixc::SourceRange{
+            0,
+            0,
+            1},
         vixc::SourceRange{}};
 
     assert(!outcome.valid());
