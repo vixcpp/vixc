@@ -413,7 +413,7 @@ namespace
     assert(!result.has_generated_output());
   }
 
-  void test_failure_emit_reaches_unsupported_backend_boundary()
+  void test_failure_emit_uses_lowered_function_representation()
   {
     const std::string source =
         "Result load() fails Error {\n"
@@ -433,24 +433,79 @@ namespace
             source,
             options);
 
-    assert(!result.success());
-    assert(result.has_errors());
+    assert(result.success());
+    assert(!result.has_errors());
+    assert(result.has_generated_output());
+    assert(result.generated_output().find("vixc_generated::Outcome<Result, Error>") != std::string::npos);
+    assert(result.generated_output().find("::failure(error)") != std::string::npos);
+    assert(result.generated_output().find("::success(value)") != std::string::npos);
+  }
 
-    bool found_unsupported_failure_emission = false;
+  void test_failure_emit_preserves_signatures_after_cpp_prelude()
+  {
+    const std::string source =
+        "#include <iostream>\n"
+        "#include <utility>\n"
+        "\n"
+        "enum class MathError\n"
+        "{\n"
+        "  DivisionByZero\n"
+        "};\n"
+        "\n"
+        "int divide(int a, int b) fails MathError\n"
+        "{\n"
+        "  if (b == 0)\n"
+        "  {\n"
+        "    fail MathError::DivisionByZero;\n"
+        "  }\n"
+        "\n"
+        "  return a / b;\n"
+        "}\n"
+        "\n"
+        "int calculate() fails MathError\n"
+        "{\n"
+        "  auto value = try divide(10, 2);\n"
+        "  return value;\n"
+        "}\n"
+        "\n"
+        "int main()\n"
+        "{\n"
+        "  return 0;\n"
+        "}\n";
 
-    for (const vixc::Diagnostic &diagnostic :
-         result.diagnostics())
-    {
-      if (diagnostic.code() == "VIXC4013")
-      {
-        found_unsupported_failure_emission = true;
-        break;
-      }
-    }
+    vixc::Frontend frontend;
 
-    assert(found_unsupported_failure_emission);
-    assert(!result.has_generated_output());
-    assert(result.generated_output().empty());
+    vixc::FrontendOptions options;
+    options.action =
+        vixc::FrontendAction::Emit;
+
+    const vixc::FrontendResult result =
+        frontend.process(
+            "failure.cpp",
+            source,
+            options);
+
+    assert(result.success());
+    assert(!result.has_errors());
+    assert(result.has_generated_output());
+
+    const std::string_view output = result.generated_output();
+    assert(
+        output.find(
+            "vixc_generated::Outcome<int, MathError>\n"
+            "divide(int a, int b)") !=
+        std::string_view::npos);
+    assert(
+        output.find(
+            "vixc_generated::Outcome<int, MathError>\n"
+            "calculate()") !=
+        std::string_view::npos);
+    assert(
+        output.find("auto __vixc_outcome_0 = divide(10, 2);") !=
+        std::string_view::npos);
+    assert(
+        output.find("auto value = std::move(__vixc_outcome_0).take_value();") !=
+        std::string_view::npos);
   }
 
   void test_result_keeps_diagnostics_after_frontend_returns()
@@ -542,7 +597,8 @@ int main()
   test_failed_invocation_does_not_poison_next_invocation();
 
   test_failure_declaration_has_scoped_semantics();
-  test_failure_emit_reaches_unsupported_backend_boundary();
+  test_failure_emit_uses_lowered_function_representation();
+  test_failure_emit_preserves_signatures_after_cpp_prelude();
 
   test_result_keeps_diagnostics_after_frontend_returns();
   test_failure_diagnostic_has_source_range();

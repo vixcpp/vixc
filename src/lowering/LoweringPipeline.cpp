@@ -25,6 +25,8 @@
 
 #include <vixc/DiagnosticSeverity.hpp>
 
+#include <string>
+
 namespace vixc::lowering
 {
 
@@ -90,7 +92,38 @@ namespace vixc::lowering
       if (!lowering.lower(*outcome))
         return false;
 
-      return lower_children(*function);
+      const auto success_type = context_.source_text(function->success_type_range());
+      if (!success_type.has_value() || *success_type == "void")
+      {
+        return report_error("VIXC3020", "void failure-aware functions are not supported by the first Outcome lowering slice", function->success_type_range());
+      }
+
+      for (std::size_t index = 0; index < function->child_count(); ++index)
+      {
+        ir::IrNode *child = function->child(index);
+        if (child != nullptr && child->kind() == ir::IrKind::TryInitialization)
+        {
+          auto *initialization = dynamic_cast<ir::failure::TryInitialization *>(child);
+          if (initialization == nullptr || !initialization->valid())
+            return report_error("VIXC3021", "invalid try initialization reached lowering", function->range());
+
+          std::size_t synthetic_id = context_.next_synthetic_id();
+          const auto function_text = context_.source_text(function->range());
+          while (function_text.has_value() &&
+                 function_text->find("__vixc_outcome_" + std::to_string(synthetic_id)) != std::string_view::npos)
+          {
+            synthetic_id = context_.next_synthetic_id();
+          }
+
+          initialization->set_synthetic_id(synthetic_id);
+        }
+      }
+
+      if (!lower_children(*function))
+        return false;
+
+      function->mark_lowered();
+      return true;
     }
 
     case ir::IrKind::Return:
@@ -105,6 +138,15 @@ namespace vixc::lowering
       }
 
       return lower_children(*statement);
+    }
+
+    case ir::IrKind::TryInitialization:
+    {
+      auto *initialization = dynamic_cast<ir::failure::TryInitialization *>(&node);
+      if (initialization == nullptr || !initialization->valid() || !initialization->has_synthetic_id())
+        return report_error("VIXC3022", "invalid try initialization reached lowering", node.range());
+
+      return true;
     }
 
     case ir::IrKind::Outcome:

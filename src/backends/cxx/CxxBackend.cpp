@@ -27,6 +27,8 @@
 
 #include <vixc/DiagnosticSeverity.hpp>
 
+#include <string>
+
 namespace vixc::backends::cxx
 {
   CxxBackend::CxxBackend(
@@ -51,6 +53,9 @@ namespace vixc::backends::cxx
     if (diagnostics_.has_errors())
       return false;
 
+    if (requires_outcome_support(program))
+      emit_outcome_support();
+
     if (!emit_node(program))
       return false;
 
@@ -60,6 +65,7 @@ namespace vixc::backends::cxx
   void CxxBackend::reset()
   {
     emitter_.reset();
+    active_function_ = nullptr;
   }
 
   const std::string &
@@ -115,10 +121,20 @@ namespace vixc::backends::cxx
     }
 
     case ir::IrKind::Return:
-      return report_error(
-          "VIXC4018",
-          "Return IR requires declaration-level C++ lowering before emission",
-          node.range());
+    {
+      const auto *statement = dynamic_cast<const ir::failure::Return *>(&node);
+      if (statement == nullptr)
+        return report_error("VIXC4018", "IR node marked as Return has an incompatible concrete type", node.range());
+      return emit_return(*statement);
+    }
+
+    case ir::IrKind::TryInitialization:
+    {
+      const auto *initialization = dynamic_cast<const ir::failure::TryInitialization *>(&node);
+      if (initialization == nullptr)
+        return report_error("VIXC4020", "IR node marked as TryInitialization has an incompatible concrete type", node.range());
+      return emit_try_initialization(*initialization);
+    }
 
     case ir::IrKind::Outcome:
     {
@@ -302,10 +318,56 @@ namespace vixc::backends::cxx
           function.range());
     }
 
-    return report_error(
-        "VIXC4013",
-        "Failure-aware function requires declaration-level C++ lowering before emission",
-        function.range());
+    if (!function.is_lowered())
+      return report_error("VIXC4013", "Failure-aware function requires declaration-level C++ lowering before emission", function.range());
+
+    const SourceRange failure_type = function.outcome()->failure_type_range();
+    emitter_.write("vixc_generated::Outcome<");
+    emitter_.write(source_text(function.success_type_range()), function.success_type_range());
+    emitter_.write(", ");
+    emitter_.write(source_text(failure_type), failure_type);
+    emitter_.write(">\n");
+    emitter_.write(source_text(function.declarator_range()), function.declarator_range());
+
+    active_function_ = &function;
+    const bool emitted = emit_children(function);
+    active_function_ = nullptr;
+    return emitted;
+  }
+
+  bool CxxBackend::emit_return(const ir::failure::Return &statement)
+  {
+    if (active_function_ == nullptr || !statement.valid())
+      return report_error("VIXC4021", "Return IR has no active lowered failure-aware function", statement.range());
+    const ir::IrNode *operand = statement.operand();
+    emitter_.write("return vixc_generated::Outcome<", statement.range());
+    emitter_.write(source_text(active_function_->success_type_range()));
+    emitter_.write(", ");
+    emitter_.write(source_text(active_function_->outcome()->failure_type_range()));
+    emitter_.write(">::success(");
+    emitter_.write(source_text(operand->range()), operand->range());
+    emitter_.write(");", statement.range());
+    return true;
+  }
+
+  bool CxxBackend::emit_try_initialization(const ir::failure::TryInitialization &initialization)
+  {
+    if (active_function_ == nullptr || !initialization.valid() || !initialization.has_synthetic_id())
+      return report_error("VIXC4022", "Try initialization has no active lowered failure-aware function", initialization.range());
+    const ir::failure::FailurePropagation *propagation = initialization.propagation();
+    const ir::IrNode *operand = propagation->operand();
+    const std::string id = std::to_string(initialization.synthetic_id());
+    const SourceRange failure_type = active_function_->outcome()->failure_type_range();
+    emitter_.write("auto __vixc_outcome_" + id + " = ", initialization.range());
+    emitter_.write(source_text(operand->range()), operand->range());
+    emitter_.write(";\nif (!__vixc_outcome_" + id + ".has_value())\n{\n  return vixc_generated::Outcome<");
+    emitter_.write(source_text(active_function_->success_type_range()));
+    emitter_.write(", ");
+    emitter_.write(source_text(failure_type));
+    emitter_.write(">::failure(std::move(__vixc_outcome_" + id + ").take_error());\n}\n");
+    emitter_.write(source_text(initialization.declaration_range()), initialization.declaration_range());
+    emitter_.write(" = std::move(__vixc_outcome_" + id + ").take_value();", initialization.range());
+    return true;
   }
 
   bool CxxBackend::emit_failure(
@@ -330,19 +392,17 @@ namespace vixc::backends::cxx
           failure.range());
     }
 
-    /*
-     * A recoverable failure cannot be emitted correctly until the surrounding
-     * failure-aware declaration has been lowered to a concrete C++ return
-     * representation.
-     *
-     * Emitting `return`, throwing an exception, or choosing std::expected here
-     * would make a backend representation decision without the declaration
-     * context required to preserve the VixC contract.
-     */
-    return report_error(
-        "VIXC4013",
-        "Failure IR requires declaration-level C++ lowering before emission",
-        failure.range());
+    if (active_function_ == nullptr || !active_function_->is_lowered())
+      return report_error("VIXC4013", "Failure IR requires declaration-level C++ lowering before emission", failure.range());
+
+    emitter_.write("return vixc_generated::Outcome<", failure.range());
+    emitter_.write(source_text(active_function_->success_type_range()));
+    emitter_.write(", ");
+    emitter_.write(source_text(active_function_->outcome()->failure_type_range()));
+    emitter_.write(">::failure(");
+    emitter_.write(source_text(operand->range()), operand->range());
+    emitter_.write(");", failure.range());
+    return true;
   }
 
   bool CxxBackend::emit_failure_propagation(
@@ -380,6 +440,42 @@ namespace vixc::backends::cxx
         "VIXC4016",
         "FailurePropagation IR requires control-flow lowering before C++ emission",
         propagation.range());
+  }
+
+  bool CxxBackend::requires_outcome_support(const ir::IrNode &node) const noexcept
+  {
+    if (node.kind() == ir::IrKind::FailureAwareFunction)
+    {
+      const auto *function = dynamic_cast<const ir::failure::FailureAwareFunction *>(&node);
+      return function != nullptr && function->is_lowered();
+    }
+
+    for (const auto &child : node.children())
+    {
+      if (child != nullptr && requires_outcome_support(*child))
+        return true;
+    }
+
+    return false;
+  }
+
+  void CxxBackend::emit_outcome_support()
+  {
+    emitter_.write(
+        "#include <utility>\n"
+        "#include <variant>\n\n"
+        "namespace vixc_generated\n{\n"
+        "template <typename T, typename E>\n"
+        "class Outcome\n{\npublic:\n"
+        "  static Outcome success(T value) { return Outcome{std::in_place_index<0>, std::move(value)}; }\n"
+        "  static Outcome failure(E error) { return Outcome{std::in_place_index<1>, std::move(error)}; }\n"
+        "  [[nodiscard]] bool has_value() const noexcept { return storage_.index() == 0; }\n"
+        "  [[nodiscard]] T &&take_value() noexcept { return std::get<0>(std::move(storage_)); }\n"
+        "  [[nodiscard]] E &&take_error() noexcept { return std::get<1>(std::move(storage_)); }\n"
+        "private:\n"
+        "  template <typename... Args> Outcome(std::in_place_index_t<0>, Args &&... args) : storage_(std::in_place_index<0>, std::forward<Args>(args)...) {}\n"
+        "  template <typename... Args> Outcome(std::in_place_index_t<1>, Args &&... args) : storage_(std::in_place_index<1>, std::forward<Args>(args)...) {}\n"
+        "  std::variant<T, E> storage_;\n};\n}\n\n");
   }
 
   std::string_view

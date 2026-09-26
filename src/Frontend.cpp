@@ -512,6 +512,42 @@ namespace vixc
     }
 
     std::unique_ptr<ir::IrNode>
+    build_try_initialization(
+        const syntax::SyntaxNode &node,
+        IrBuildContext &context,
+        diagnostics::DiagnosticEngine &diagnostics)
+    {
+      if (node.child_count() != 2)
+      {
+        diagnostics.emit(DiagnosticSeverity::Error, "VIXC5021", "try initialization must contain a declaration and propagation", node.range());
+        return nullptr;
+      }
+
+      const syntax::SyntaxNode *declaration = node.child(0);
+      const syntax::SyntaxNode *propagation_syntax = node.child(1);
+      if (declaration == nullptr || propagation_syntax == nullptr)
+        return nullptr;
+
+      std::unique_ptr<ir::IrNode> propagation_node = build_try_expression(
+          *propagation_syntax, context, diagnostics);
+      auto *propagation = dynamic_cast<ir::failure::FailurePropagation *>(propagation_node.get());
+      if (propagation == nullptr)
+        return nullptr;
+
+      auto initialization = std::make_unique<ir::failure::TryInitialization>(
+          node.range(), declaration->range(),
+          std::unique_ptr<ir::failure::FailurePropagation>(
+              static_cast<ir::failure::FailurePropagation *>(propagation_node.release())));
+      if (!initialization->valid())
+      {
+        diagnostics.emit(DiagnosticSeverity::Error, "VIXC5022", "unable to construct a valid try initialization IR node", node.range());
+        return nullptr;
+      }
+
+      return initialization;
+    }
+
+    std::unique_ptr<ir::IrNode>
     build_ir_node(
         const syntax::SyntaxNode &node,
         IrBuildContext &context,
@@ -579,6 +615,9 @@ namespace vixc
             node,
             context,
             diagnostics);
+
+      case syntax::SyntaxKind::TryInitialization:
+        return build_try_initialization(node, context, diagnostics);
 
       case syntax::SyntaxKind::TryExpression:
         return build_try_expression(

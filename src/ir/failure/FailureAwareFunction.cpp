@@ -90,6 +90,16 @@ namespace vixc::ir::failure
            body_range_.end_offset() <= range().end_offset();
   }
 
+  void FailureAwareFunction::mark_lowered() noexcept
+  {
+    lowered_ = true;
+  }
+
+  bool FailureAwareFunction::is_lowered() const noexcept
+  {
+    return lowered_;
+  }
+
   Return::Return(
       SourceRange range,
       std::unique_ptr<IrNode> operand)
@@ -125,6 +135,28 @@ namespace vixc::ir::failure
 
     return range().begin_offset() <= operand_range.begin_offset() &&
            operand_range.end_offset() <= range().end_offset();
+  }
+
+  TryInitialization::TryInitialization(
+      SourceRange range,
+      SourceRange declaration_range,
+      std::unique_ptr<FailurePropagation> propagation)
+      : IrNode(IrKind::TryInitialization, range),
+        declaration_range_(declaration_range)
+  {
+    add_child(std::move(propagation));
+  }
+
+  SourceRange TryInitialization::declaration_range() const noexcept { return declaration_range_; }
+  const FailurePropagation *TryInitialization::propagation() const noexcept { return dynamic_cast<const FailurePropagation *>(child(0)); }
+  FailurePropagation *TryInitialization::propagation() noexcept { return dynamic_cast<FailurePropagation *>(child(0)); }
+  void TryInitialization::set_synthetic_id(std::size_t value) noexcept { synthetic_id_ = value; has_synthetic_id_ = true; }
+  std::size_t TryInitialization::synthetic_id() const noexcept { return synthetic_id_; }
+  bool TryInitialization::has_synthetic_id() const noexcept { return has_synthetic_id_; }
+  bool TryInitialization::valid() const noexcept
+  {
+    return range().valid() && declaration_range_.valid() && !declaration_range_.empty() &&
+           declaration_range_.source_id() == range().source_id() && propagation() != nullptr && propagation()->valid();
   }
 
 } // namespace vixc::ir::failure

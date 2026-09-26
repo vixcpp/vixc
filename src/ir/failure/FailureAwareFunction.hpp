@@ -17,11 +17,13 @@
 #define VIXC_IR_FAILURE_FAILURE_AWARE_FUNCTION_HPP
 
 #include "../IrNode.hpp"
+#include "Failure.hpp"
 #include "Outcome.hpp"
 
 #include <vixc/SourceRange.hpp>
 
 #include <memory>
+#include <cstddef>
 
 namespace vixc::ir::failure
 {
@@ -114,11 +116,17 @@ namespace vixc::ir::failure
     [[nodiscard]]
     bool valid() const noexcept;
 
+    void mark_lowered() noexcept;
+
+    [[nodiscard]]
+    bool is_lowered() const noexcept;
+
   private:
     SourceRange success_type_range_{};
     SourceRange declarator_range_{};
     SourceRange body_range_{};
     std::unique_ptr<Outcome> outcome_;
+    bool lowered_{false};
   };
 
   /**
@@ -172,6 +180,29 @@ namespace vixc::ir::failure
      */
     [[nodiscard]]
     bool valid() const noexcept;
+  };
+
+  /** @brief Structured `auto name = try expression;` propagation statement. */
+  class TryInitialization final : public IrNode
+  {
+  public:
+    TryInitialization(
+        SourceRange range,
+        SourceRange declaration_range,
+        std::unique_ptr<FailurePropagation> propagation);
+
+    [[nodiscard]] SourceRange declaration_range() const noexcept;
+    [[nodiscard]] const FailurePropagation *propagation() const noexcept;
+    [[nodiscard]] FailurePropagation *propagation() noexcept;
+    void set_synthetic_id(std::size_t value) noexcept;
+    [[nodiscard]] std::size_t synthetic_id() const noexcept;
+    [[nodiscard]] bool has_synthetic_id() const noexcept;
+    [[nodiscard]] bool valid() const noexcept;
+
+  private:
+    SourceRange declaration_range_{};
+    std::size_t synthetic_id_{0};
+    bool has_synthetic_id_{false};
   };
 
 } // namespace vixc::ir::failure

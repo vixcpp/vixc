@@ -51,6 +51,8 @@ namespace vixc::ir::failure
 {
 
   class FailureAwareFunction;
+  class Return;
+  class TryInitialization;
   class Outcome;
   class Failure;
   class FailurePropagation;
@@ -245,6 +247,11 @@ namespace vixc::backends::cxx
     bool emit_failure_aware_function(
         const ir::failure::FailureAwareFunction &function);
 
+    bool emit_return(const ir::failure::Return &statement);
+    bool emit_try_initialization(const ir::failure::TryInitialization &initialization);
+    void emit_outcome_support();
+    [[nodiscard]] bool requires_outcome_support(const ir::IrNode &node) const noexcept;
+
     /**
      * @brief Emits the C++ representation required for an Outcome contract.
      *
@@ -324,6 +331,8 @@ namespace vixc::backends::cxx
 
     /// C++ text and source-map builder for the current generation.
     CxxEmitter emitter_;
+
+    const ir::failure::FailureAwareFunction *active_function_{nullptr};
   };
 
 } // namespace vixc::backends::cxx

@@ -500,7 +500,7 @@ namespace
         vixc::syntax::SyntaxKind::FunctionDeclaration);
 
     bool found_specification = false;
-    bool found_try = false;
+    bool found_try_initialization = false;
     bool found_fail = false;
 
     for (const vixc::syntax::SyntaxNode &child :
@@ -512,9 +512,40 @@ namespace
         found_specification = true;
         break;
 
-      case vixc::syntax::SyntaxKind::TryExpression:
-        found_try = true;
+      case vixc::syntax::SyntaxKind::TryInitialization:
+      {
+        assert(child.child_count() == 2);
+
+        const vixc::syntax::SyntaxNode *declaration =
+            child.child(0);
+        const vixc::syntax::SyntaxNode *propagation =
+            child.child(1);
+
+        assert(declaration != nullptr);
+        assert(propagation != nullptr);
+        assert(
+            declaration->kind() ==
+            vixc::syntax::SyntaxKind::CxxRegion);
+        assert(
+            source_text(
+                source,
+                declaration->range()) == "auto value");
+        assert(
+            propagation->kind() ==
+            vixc::syntax::SyntaxKind::TryExpression);
+        assert(propagation->child_count() == 1);
+
+        const vixc::syntax::SyntaxNode *operand =
+            propagation->child(0);
+        assert(operand != nullptr);
+        assert(
+            source_text(
+                source,
+                operand->range()) == "read()");
+
+        found_try_initialization = true;
         break;
+      }
 
       case vixc::syntax::SyntaxKind::FailStatement:
         found_fail = true;
@@ -526,7 +557,7 @@ namespace
     }
 
     assert(found_specification);
-    assert(found_try);
+    assert(found_try_initialization);
     assert(found_fail);
   }
 
@@ -850,6 +881,132 @@ namespace
     assert(source_text(source, declarator->range()) == "name()");
   }
 
+  void test_failure_aware_functions_following_cpp_preserve_signatures()
+  {
+    const std::string source =
+        "#include <iostream>\n"
+        "#include <utility>\n"
+        "\n"
+        "enum class MathError\n"
+        "{\n"
+        "    DivisionByZero\n"
+        "};\n"
+        "\n"
+        "int divide(int a, int b) fails MathError\n"
+        "{\n"
+        "    if (b == 0)\n"
+        "    {\n"
+        "        fail MathError::DivisionByZero;\n"
+        "    }\n"
+        "\n"
+        "    return a / b;\n"
+        "}\n"
+        "\n"
+        "int calculate() fails MathError\n"
+        "{\n"
+        "    auto value = try divide(10, 2);\n"
+        "    return value;\n"
+        "}\n"
+        "\n"
+        "int main()\n"
+        "{\n"
+        "    return 0;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+    assert(root.child_count() == 4);
+
+    const vixc::syntax::SyntaxNode *prelude = root.child(0);
+    const vixc::syntax::SyntaxNode *divide = root.child(1);
+    const vixc::syntax::SyntaxNode *calculate = root.child(2);
+    const vixc::syntax::SyntaxNode *main = root.child(3);
+
+    assert(prelude != nullptr);
+    assert(divide != nullptr);
+    assert(calculate != nullptr);
+    assert(main != nullptr);
+    assert(prelude->kind() == vixc::syntax::SyntaxKind::CxxRegion);
+    assert(divide->kind() == vixc::syntax::SyntaxKind::FunctionDeclaration);
+    assert(calculate->kind() == vixc::syntax::SyntaxKind::FunctionDeclaration);
+    assert(main->kind() == vixc::syntax::SyntaxKind::CxxRegion);
+    assert(source_text(source, prelude->range()).find("MathError") != std::string_view::npos);
+    assert(source_text(source, main->range()).find("int main") != std::string_view::npos);
+
+    const auto assert_signature =
+        [&source](
+            const vixc::syntax::SyntaxNode &function,
+            std::string_view declarator_text)
+        {
+          const vixc::syntax::SyntaxNode *return_type = nullptr;
+          const vixc::syntax::SyntaxNode *declarator = nullptr;
+          const vixc::syntax::SyntaxNode *specification = nullptr;
+
+          for (const vixc::syntax::SyntaxNode &child : function.children())
+          {
+            if (child.kind() == vixc::syntax::SyntaxKind::FunctionReturnType)
+              return_type = &child;
+            else if (child.kind() == vixc::syntax::SyntaxKind::FunctionDeclarator)
+              declarator = &child;
+            else if (child.kind() == vixc::syntax::SyntaxKind::FailureSpecification)
+              specification = &child;
+          }
+
+          assert(return_type != nullptr);
+          assert(declarator != nullptr);
+          assert(specification != nullptr);
+          assert(source_text(source, return_type->range()) == "int");
+          assert(source_text(source, declarator->range()) == declarator_text);
+          assert(specification->child_count() == 1);
+
+          const vixc::syntax::SyntaxNode *failure_type =
+              specification->child(0);
+          assert(failure_type != nullptr);
+          assert(source_text(source, failure_type->range()) == "MathError");
+        };
+
+    assert_signature(*divide, "divide(int a, int b)");
+    assert_signature(*calculate, "calculate()");
+
+    bool divide_has_failure = false;
+    bool divide_has_return = false;
+    for (const vixc::syntax::SyntaxNode &child : divide->children())
+    {
+      divide_has_failure =
+          divide_has_failure ||
+          child.kind() == vixc::syntax::SyntaxKind::FailStatement;
+      divide_has_return =
+          divide_has_return ||
+          child.kind() == vixc::syntax::SyntaxKind::ReturnStatement;
+    }
+
+    assert(divide_has_failure);
+    assert(divide_has_return);
+
+    bool calculate_has_try_initialization = false;
+    bool calculate_has_return = false;
+    for (const vixc::syntax::SyntaxNode &child : calculate->children())
+    {
+      if (child.kind() == vixc::syntax::SyntaxKind::TryInitialization)
+      {
+        assert(child.child_count() == 2);
+        const vixc::syntax::SyntaxNode *propagation = child.child(1);
+        assert(propagation != nullptr);
+        assert(propagation->kind() == vixc::syntax::SyntaxKind::TryExpression);
+        calculate_has_try_initialization = true;
+      }
+
+      calculate_has_return =
+          calculate_has_return ||
+          child.kind() == vixc::syntax::SyntaxKind::ReturnStatement;
+    }
+
+    assert(calculate_has_try_initialization);
+    assert(calculate_has_return);
+  }
+
 } // namespace
 
 int main()
@@ -883,6 +1040,7 @@ int main()
   test_failure_aware_function_retains_return_structure();
   test_failure_aware_function_bodies_remain_separate();
   test_failure_aware_function_retains_multi_token_success_type();
+  test_failure_aware_functions_following_cpp_preserve_signatures();
 
   return 0;
 }

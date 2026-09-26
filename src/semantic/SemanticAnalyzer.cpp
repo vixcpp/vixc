@@ -80,6 +80,7 @@ namespace vixc::semantic
     }
 
     case syntax::SyntaxKind::ReturnStatement:
+    case syntax::SyntaxKind::TryInitialization:
       return analyze_children(node);
     }
 

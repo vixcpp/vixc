@@ -73,6 +73,8 @@ namespace vixc::ir
      */
     Return,
 
+    TryInitialization,
+
     /**
      * @brief Semantic description of a computation's possible outcomes.
      *
@@ -128,6 +130,9 @@ namespace vixc::ir
 
     case IrKind::Return:
       return "Return";
+
+    case IrKind::TryInitialization:
+      return "TryInitialization";
 
     case IrKind::Outcome:
       return "Outcome";

@@ -246,6 +246,7 @@ namespace vixc::lowering::failure
     case ir::IrKind::Program:
     case ir::IrKind::FailureAwareFunction:
     case ir::IrKind::Return:
+    case ir::IrKind::TryInitialization:
       return report_error(
           "VIXC3117",
           "container or statement IR cannot be used as a failure operand",

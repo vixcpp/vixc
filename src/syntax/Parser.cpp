@@ -125,6 +125,12 @@ namespace vixc::syntax
             std::move(node));
       }
 
+      if (pending_top_level_region_.has_value())
+      {
+        root.add_child(std::move(*pending_top_level_region_));
+        pending_top_level_region_.reset();
+      }
+
       if (!node.is_invalid())
         root.add_child(std::move(node));
 
@@ -231,7 +237,8 @@ namespace vixc::syntax
          index < prefix_end;
          ++index)
     {
-      if (tokens_[index].range().begin() == prefix_range.begin())
+      if (tokens_[index].range().begin_offset() >=
+          prefix_range.begin_offset())
       {
         prefix_begin = index;
         break;
@@ -259,7 +266,8 @@ namespace vixc::syntax
 
       if (begin > prefix_begin)
       {
-        children.push_back(make_cxx_region(prefix_begin, begin));
+        pending_top_level_region_ =
+            make_cxx_region(prefix_begin, begin);
       }
 
       const SourceRange success_type_range =
@@ -357,6 +365,21 @@ namespace vixc::syntax
         continue;
       }
 
+      if (check(TokenKind::KeywordTry))
+      {
+        const std::size_t initialization_begin =
+            try_initialization_begin(region_begin);
+        if (initialization_begin != tokens_.size())
+        {
+          if (initialization_begin > region_begin)
+            children.push_back(make_cxx_region(region_begin, initialization_begin));
+
+          children.push_back(parse_try_initialization(initialization_begin));
+          region_begin = position_;
+          continue;
+        }
+      }
+
       if (starts_vixc_construct())
       {
         if (position_ > region_begin)
@@ -387,6 +410,45 @@ namespace vixc::syntax
         SyntaxKind::FunctionDeclaration,
         range,
         std::move(children)};
+  }
+
+  SyntaxNode Parser::parse_try_initialization(
+      std::size_t declaration_begin)
+  {
+    const std::size_t try_begin = position_;
+    SyntaxNode node{SyntaxKind::TryInitialization, tokens_[declaration_begin].range()};
+    node.add_child(make_cxx_region(declaration_begin, try_begin - 1));
+    node.add_child(parse_try_expression());
+
+    if (!match(TokenKind::Semicolon))
+    {
+      report_error("VIXC1007", "expected ';' after try initialization", range_from_tokens(declaration_begin, position_));
+    }
+
+    return SyntaxNode{
+        SyntaxKind::TryInitialization,
+        range_from_tokens(declaration_begin, position_),
+        node.children()};
+  }
+
+  std::size_t Parser::try_initialization_begin(
+      std::size_t region_begin) const noexcept
+  {
+    if (position_ < region_begin + 3)
+      return tokens_.size();
+
+    const std::size_t equal = position_ - 1;
+    const std::size_t name = position_ - 2;
+    const std::size_t auto_keyword = position_ - 3;
+    if (tokens_[equal].is(TokenKind::Equal) &&
+        tokens_[name].is(TokenKind::Identifier) &&
+        tokens_[auto_keyword].is(TokenKind::Identifier) &&
+        tokens_[auto_keyword].text() == "auto")
+    {
+      return auto_keyword;
+    }
+
+    return tokens_.size();
   }
 
   SyntaxNode Parser::parse_return_statement()

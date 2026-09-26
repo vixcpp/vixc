@@ -147,6 +147,9 @@ namespace vixc::syntax
      */
     ReturnStatement,
 
+    /** @brief Auto variable initialization that propagates a Failure result. */
+    TryInitialization,
+
     /**
      * @brief Failure-propagating expression introduced with `try`.
      *
@@ -219,6 +222,9 @@ namespace vixc::syntax
 
     case SyntaxKind::ReturnStatement:
       return "ReturnStatement";
+
+    case SyntaxKind::TryInitialization:
+      return "TryInitialization";
 
     case SyntaxKind::TryExpression:
       return "TryExpression";

@@ -24,6 +24,7 @@
 #include <vixc/SourceRange.hpp>
 
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 namespace vixc::syntax
@@ -233,6 +234,30 @@ namespace vixc::syntax
     SyntaxNode parse_return_statement();
 
     /**
+     * @brief Parses `auto name = try expression;` in a failure-aware body.
+     *
+     * The initializer declaration and propagation expression remain separate
+     * children so later stages can lower the propagation without reparsing
+     * ordinary C++ source text.
+     *
+     * @param declaration_begin First token of the `auto` declaration.
+     * @return TryInitialization syntax node.
+     */
+    [[nodiscard]]
+    SyntaxNode parse_try_initialization(
+        std::size_t declaration_begin);
+
+    /**
+     * @brief Finds the `auto` declaration that immediately initializes try.
+     *
+     * @param region_begin First token of the unstructured body region.
+     * @return First declaration token, or tokens_.size() when unsupported.
+     */
+    [[nodiscard]]
+    std::size_t try_initialization_begin(
+        std::size_t region_begin) const noexcept;
+
+    /**
      * @brief Finds the matching opening parenthesis for a closing parenthesis.
      *
      * @param closing_index Index of a RightParen token.
@@ -385,6 +410,9 @@ namespace vixc::syntax
 
     /// Index of the current token.
     std::size_t position_{0};
+
+    /// Top-level C++ preceding the currently parsed failure-aware function.
+    std::optional<SyntaxNode> pending_top_level_region_;
   };
 
 } // namespace vixc::syntax
