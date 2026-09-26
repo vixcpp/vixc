@@ -21,6 +21,7 @@
 #include "../ir/IrKind.hpp"
 #include "../ir/IrNode.hpp"
 #include "../ir/Program.hpp"
+#include "../ir/failure/FailureAwareFunction.hpp"
 
 #include <vixc/DiagnosticSeverity.hpp>
 
@@ -64,6 +65,47 @@ namespace vixc::lowering
 
     case ir::IrKind::CxxRegion:
       return true;
+
+    case ir::IrKind::FailureAwareFunction:
+    {
+      auto *function = dynamic_cast<ir::failure::FailureAwareFunction *>(&node);
+      if (function == nullptr || !function->valid())
+      {
+        return report_error(
+            "VIXC3004",
+            "invalid failure-aware function reached the lowering pipeline",
+            node.range());
+      }
+
+      ir::failure::Outcome *outcome = function->outcome();
+      if (outcome == nullptr)
+      {
+        return report_error(
+            "VIXC3005",
+            "failure-aware function has no Outcome contract",
+            node.range());
+      }
+
+      failure::FailureLowering lowering{context_};
+      if (!lowering.lower(*outcome))
+        return false;
+
+      return lower_children(*function);
+    }
+
+    case ir::IrKind::Return:
+    {
+      auto *statement = dynamic_cast<ir::failure::Return *>(&node);
+      if (statement == nullptr || !statement->valid())
+      {
+        return report_error(
+            "VIXC3006",
+            "invalid Return IR reached the lowering pipeline",
+            node.range());
+      }
+
+      return lower_children(*statement);
+    }
 
     case ir::IrKind::Outcome:
     case ir::IrKind::Failure:

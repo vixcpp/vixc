@@ -179,7 +179,15 @@ namespace vixc::syntax
      *
      * Propagates failure from another failure-aware operation.
      */
-    KeywordTry
+    KeywordTry,
+
+    /**
+     * @brief `return`
+     *
+     * Native C++ return syntax is structurally preserved only while parsing a
+     * failure-aware function body. Elsewhere it remains part of CxxRegion.
+     */
+    KeywordReturn
   };
 
   /**
@@ -454,6 +462,9 @@ namespace vixc::syntax
     case TokenKind::KeywordTry:
       return "try";
 
+    case TokenKind::KeywordReturn:
+      return "return";
+
     case TokenKind::Invalid:
     case TokenKind::EndOfFile:
     case TokenKind::Identifier:
@@ -478,7 +489,7 @@ namespace vixc::syntax
   constexpr bool
   token_kind_is_keyword(TokenKind kind) noexcept
   {
-    return kind == TokenKind::KeywordFail || kind == TokenKind::KeywordFails || kind == TokenKind::KeywordTry;
+    return kind == TokenKind::KeywordFail || kind == TokenKind::KeywordFails || kind == TokenKind::KeywordTry || kind == TokenKind::KeywordReturn;
   }
 
   /**

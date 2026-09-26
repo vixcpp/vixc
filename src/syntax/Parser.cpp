@@ -118,6 +118,13 @@ namespace vixc::syntax
 
       SyntaxNode node = parse_next();
 
+      if (node.is(SyntaxKind::CxxRegion) &&
+          check(TokenKind::KeywordFails))
+      {
+        node = parse_failure_aware_function_declaration(
+            std::move(node));
+      }
+
       if (!node.is_invalid())
         root.add_child(std::move(node));
 
@@ -206,6 +213,290 @@ namespace vixc::syntax
         SourceRange{
             begin_location,
             end}};
+  }
+
+  SyntaxNode Parser::parse_failure_aware_function_declaration(
+      SyntaxNode declaration_prefix)
+  {
+    const SourceRange prefix_range = declaration_prefix.range();
+    const std::size_t prefix_end = position_;
+    SyntaxNode specification = parse_failure_specification();
+
+    std::vector<SyntaxNode> children;
+    children.reserve(6);
+    SourceRange declaration_range = prefix_range;
+
+    std::size_t prefix_begin = tokens_.size();
+    for (std::size_t index = 0;
+         index < prefix_end;
+         ++index)
+    {
+      if (tokens_[index].range().begin() == prefix_range.begin())
+      {
+        prefix_begin = index;
+        break;
+      }
+    }
+
+    std::size_t parameter_open = tokens_.size();
+    if (prefix_begin < prefix_end &&
+        prefix_end > 0 &&
+        tokens_[prefix_end - 1].is(TokenKind::RightParen))
+    {
+      parameter_open = matching_left_paren(prefix_end - 1);
+    }
+
+    if (parameter_open == tokens_.size() ||
+        parameter_open == prefix_begin)
+    {
+      children.push_back(std::move(declaration_prefix));
+    }
+    else
+    {
+      const std::size_t begin = declaration_begin(
+          prefix_begin,
+          parameter_open);
+
+      if (begin > prefix_begin)
+      {
+        children.push_back(make_cxx_region(prefix_begin, begin));
+      }
+
+      const SourceRange success_type_range =
+          range_from_tokens(begin, parameter_open - 1);
+      declaration_range = success_type_range;
+      children.push_back(SyntaxNode{
+          SyntaxKind::FunctionReturnType,
+          success_type_range});
+      children.push_back(SyntaxNode{
+          SyntaxKind::FunctionDeclarator,
+          range_from_tokens(parameter_open - 1, prefix_end)});
+    }
+
+    children.push_back(std::move(specification));
+
+    SourceRange range = declaration_range;
+
+    const SourceLocation function_begin = range.begin();
+
+    if (!match(TokenKind::LeftBrace))
+    {
+      const SyntaxNode &failure_specification = children.back();
+      if (range.valid() && failure_specification.range().valid())
+      {
+        range = SourceRange{
+            function_begin,
+            failure_specification.range().end()};
+      }
+
+      return SyntaxNode{
+          SyntaxKind::FunctionDeclaration,
+          range,
+          std::move(children)};
+    }
+
+    const std::size_t body_begin = position_ - 1;
+    std::size_t region_begin = body_begin;
+    std::size_t brace_depth = 1;
+
+    while (!at_end())
+    {
+      if (check(TokenKind::RightBrace))
+      {
+        if (brace_depth == 1)
+        {
+          advance();
+          if (position_ > region_begin)
+          {
+            children.push_back(
+                make_cxx_region(
+                    region_begin,
+                    position_));
+          }
+
+          range = range_from_tokens(
+              body_begin,
+              position_);
+          if (range.valid())
+          {
+            range = SourceRange{
+                function_begin,
+                range.end()};
+          }
+
+          return SyntaxNode{
+              SyntaxKind::FunctionDeclaration,
+              range,
+              std::move(children)};
+        }
+
+        --brace_depth;
+        advance();
+        continue;
+      }
+
+      if (check(TokenKind::LeftBrace))
+      {
+        ++brace_depth;
+        advance();
+        continue;
+      }
+
+      if (check(TokenKind::KeywordReturn))
+      {
+        if (position_ > region_begin)
+        {
+          children.push_back(
+              make_cxx_region(
+                  region_begin,
+                  position_));
+        }
+
+        children.push_back(parse_return_statement());
+        region_begin = position_;
+        continue;
+      }
+
+      if (starts_vixc_construct())
+      {
+        if (position_ > region_begin)
+        {
+          children.push_back(
+              make_cxx_region(
+                  region_begin,
+                  position_));
+        }
+
+        children.push_back(parse_next());
+        region_begin = position_;
+        continue;
+      }
+
+      advance();
+    }
+
+    if (position_ > region_begin)
+    {
+      children.push_back(
+          make_cxx_region(
+              region_begin,
+              position_));
+    }
+
+    return SyntaxNode{
+        SyntaxKind::FunctionDeclaration,
+        range,
+        std::move(children)};
+  }
+
+  SyntaxNode Parser::parse_return_statement()
+  {
+    const std::size_t begin = position_;
+    const Token return_token = current();
+
+    advance();
+
+    const std::size_t operand_begin = position_;
+    const std::size_t operand_end = scan_opaque_region(
+        true,
+        false,
+        false,
+        false,
+        true);
+
+    SyntaxNode node{
+        SyntaxKind::ReturnStatement,
+        return_token.range()};
+
+    if (operand_end == operand_begin)
+    {
+      report_error(
+          "VIXC1005",
+          "expected an expression after 'return' in a failure-aware function",
+          return_token.range());
+    }
+    else
+    {
+      node.add_child(make_cxx_region(operand_begin, operand_end));
+    }
+
+    if (!match(TokenKind::Semicolon))
+    {
+      report_error(
+          "VIXC1006",
+          "expected ';' after return statement",
+          range_from_tokens(begin, position_));
+    }
+
+    return SyntaxNode{
+        SyntaxKind::ReturnStatement,
+        range_from_tokens(begin, position_),
+        node.children()};
+  }
+
+  std::size_t Parser::matching_left_paren(
+      std::size_t closing_index) const noexcept
+  {
+    if (closing_index >= tokens_.size() ||
+        !tokens_[closing_index].is(TokenKind::RightParen))
+    {
+      return tokens_.size();
+    }
+
+    std::size_t depth = 0;
+    for (std::size_t index = closing_index + 1;
+         index > 0;
+         --index)
+    {
+      const std::size_t token_index = index - 1;
+      if (tokens_[token_index].is(TokenKind::RightParen))
+      {
+        ++depth;
+      }
+      else if (tokens_[token_index].is(TokenKind::LeftParen))
+      {
+        --depth;
+        if (depth == 0)
+          return token_index;
+      }
+    }
+
+    return tokens_.size();
+  }
+
+  std::size_t Parser::declaration_begin(
+      std::size_t begin_index,
+      std::size_t end_index) const noexcept
+  {
+    std::size_t result = begin_index;
+    std::size_t brace_depth = 0;
+
+    for (std::size_t index = begin_index;
+         index < end_index;
+         ++index)
+    {
+      if (tokens_[index].is(TokenKind::LeftBrace))
+      {
+        ++brace_depth;
+        continue;
+      }
+
+      if (tokens_[index].is(TokenKind::RightBrace))
+      {
+        if (brace_depth > 0)
+          --brace_depth;
+
+        if (brace_depth == 0)
+          result = index + 1;
+
+        continue;
+      }
+
+      if (brace_depth == 0 && tokens_[index].is(TokenKind::Semicolon))
+        result = index + 1;
+    }
+
+    return result;
   }
 
   SyntaxNode Parser::parse_fail_statement()

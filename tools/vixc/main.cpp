@@ -15,7 +15,6 @@
 
 #include <vixc/vixc.hpp>
 
-#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -33,12 +32,6 @@ namespace
     std::optional<std::string> output_path;
     bool show_help{false};
     bool show_version{false};
-  };
-
-  struct SourcePosition final
-  {
-    std::size_t line{1};
-    std::size_t column{1};
   };
 
   void print_usage(std::ostream &stream)
@@ -302,83 +295,21 @@ namespace
     return true;
   }
 
-  SourcePosition source_position(
-      std::string_view source,
-      std::size_t offset) noexcept
-  {
-    SourcePosition position;
-
-    if (offset > source.size())
-      offset = source.size();
-
-    for (std::size_t index = 0;
-         index < offset;
-         ++index)
-    {
-      if (source[index] == '\n')
-      {
-        ++position.line;
-        position.column = 1;
-        continue;
-      }
-
-      ++position.column;
-    }
-
-    return position;
-  }
-
-  void print_diagnostic(
-      const vixc::Diagnostic &diagnostic,
-      std::string_view source_name,
-      std::string_view source)
-  {
-    if (diagnostic.has_range())
-    {
-      const SourcePosition position =
-          source_position(
-              source,
-              diagnostic.range().begin_offset());
-
-      std::cerr
-          << source_name
-          << ':'
-          << position.line
-          << ':'
-          << position.column
-          << ": ";
-    }
-
-    std::cerr
-        << vixc::diagnostic_severity_name(
-               diagnostic.severity());
-
-    if (diagnostic.has_code())
-    {
-      std::cerr
-          << " ["
-          << diagnostic.code()
-          << ']';
-    }
-
-    std::cerr
-        << ": "
-        << diagnostic.message()
-        << '\n';
-  }
-
   void print_diagnostics(
       const vixc::FrontendResult &result,
       std::string_view source_name,
       std::string_view source)
   {
+    const vixc::DiagnosticRenderer renderer;
+
     for (const vixc::Diagnostic &diagnostic :
          result.diagnostics())
     {
-      print_diagnostic(
-          diagnostic,
-          source_name,
-          source);
+      std::cerr
+          << renderer.render(
+                 diagnostic,
+                 source_name,
+                 source);
     }
   }
 

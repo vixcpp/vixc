@@ -21,6 +21,7 @@
 #include "../SemanticContext.hpp"
 
 #include <optional>
+#include <string>
 
 namespace vixc::syntax
 {
@@ -182,13 +183,16 @@ namespace vixc::semantic::failure
      * @param code Stable semantic diagnostic code.
      * @param message Human-readable diagnostic message.
      * @param range Source range associated with the failure.
+     * @param hint Optional semantically valid guidance for resolving the
+     *        failure.
      *
      * @return false so validation paths can directly return the result.
      */
     bool report_error(
         const char *code,
         const char *message,
-        SourceRange range);
+        SourceRange range,
+        std::string hint = {});
 
     /// Shared semantic state for the current frontend operation.
     SemanticContext &context_;

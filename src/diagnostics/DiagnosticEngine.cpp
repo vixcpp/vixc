@@ -63,6 +63,21 @@ namespace vixc::diagnostics
         range});
   }
 
+  void DiagnosticEngine::emit(
+      DiagnosticSeverity severity,
+      std::string code,
+      std::string message,
+      SourceRange range,
+      std::string hint)
+  {
+    emit(Diagnostic{
+        severity,
+        std::move(code),
+        std::move(message),
+        range,
+        std::move(hint)});
+  }
+
   void DiagnosticEngine::note(
       std::string message,
       SourceRange range)

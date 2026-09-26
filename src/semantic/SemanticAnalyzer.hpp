@@ -110,6 +110,14 @@ namespace vixc::semantic
     bool analyze_node(const syntax::SyntaxNode &node);
 
     /**
+     * @brief Analyzes one declaration-scoped failure-aware function body.
+     *
+     * @param node FunctionDeclaration syntax node.
+     * @return true when the declaration and its body are semantically valid.
+     */
+    bool analyze_function_declaration(const syntax::SyntaxNode &node);
+
+    /**
      * @brief Analyzes all direct children of a syntax node.
      *
      * Child nodes are visited in parser-defined source order. Recoverable errors

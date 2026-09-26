@@ -47,6 +47,7 @@ target_sources(
     src/source/SourceManager.cpp
 
     src/diagnostics/DiagnosticEngine.cpp
+    src/diagnostics/DiagnosticRenderer.cpp
 
     src/syntax/Lexer.cpp
     src/syntax/Parser.cpp
@@ -59,6 +60,7 @@ target_sources(
     src/ir/Program.cpp
     src/ir/failure/Outcome.cpp
     src/ir/failure/Failure.cpp
+    src/ir/failure/FailureAwareFunction.cpp
 
     src/lowering/LoweringContext.cpp
     src/lowering/LoweringPipeline.cpp

@@ -206,6 +206,8 @@ namespace vixc::syntax
       kind = TokenKind::KeywordFails;
     else if (text == "try")
       kind = TokenKind::KeywordTry;
+    else if (text == "return")
+      kind = TokenKind::KeywordReturn;
 
     return make_token(kind, begin, offset_);
   }

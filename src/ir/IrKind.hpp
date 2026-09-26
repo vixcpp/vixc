@@ -64,6 +64,16 @@ namespace vixc::ir
     CxxRegion,
 
     /**
+     * @brief Declaration-level Failure contract and ordered function body.
+     */
+    FailureAwareFunction,
+
+    /**
+     * @brief Value-bearing return from a failure-aware function.
+     */
+    Return,
+
+    /**
      * @brief Semantic description of a computation's possible outcomes.
      *
      * Outcome nodes belong to the VixC failure model. They describe completion
@@ -112,6 +122,12 @@ namespace vixc::ir
 
     case IrKind::CxxRegion:
       return "CxxRegion";
+
+    case IrKind::FailureAwareFunction:
+      return "FailureAwareFunction";
+
+    case IrKind::Return:
+      return "Return";
 
     case IrKind::Outcome:
       return "Outcome";

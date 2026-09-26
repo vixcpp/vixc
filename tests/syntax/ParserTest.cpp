@@ -488,12 +488,23 @@ namespace
     assert(
         root.kind() == vixc::syntax::SyntaxKind::TranslationUnit);
 
+    assert(root.child_count() == 1);
+
+    const vixc::syntax::SyntaxNode *function =
+        root.child(0);
+
+    assert(function != nullptr);
+
+    assert(
+        function->kind() ==
+        vixc::syntax::SyntaxKind::FunctionDeclaration);
+
     bool found_specification = false;
     bool found_try = false;
     bool found_fail = false;
 
     for (const vixc::syntax::SyntaxNode &child :
-         root.children())
+         function->children())
     {
       switch (child.kind())
       {
@@ -730,6 +741,115 @@ namespace
         operand->range().source_id() == source_id);
   }
 
+  void test_failure_aware_function_retains_return_structure()
+  {
+    const std::string source =
+        "int divide(int a, int b) fails MathError\n"
+        "{\n"
+        "  return a / b;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+    assert(root.child_count() == 1);
+
+    const vixc::syntax::SyntaxNode *function = root.child(0);
+    assert(function != nullptr);
+    assert(function->kind() == vixc::syntax::SyntaxKind::FunctionDeclaration);
+
+    const vixc::syntax::SyntaxNode *return_type = nullptr;
+    const vixc::syntax::SyntaxNode *declarator = nullptr;
+    const vixc::syntax::SyntaxNode *specification = nullptr;
+    const vixc::syntax::SyntaxNode *statement = nullptr;
+
+    for (const vixc::syntax::SyntaxNode &child : function->children())
+    {
+      if (child.kind() == vixc::syntax::SyntaxKind::FunctionReturnType)
+        return_type = &child;
+      else if (child.kind() == vixc::syntax::SyntaxKind::FunctionDeclarator)
+        declarator = &child;
+      else if (child.kind() == vixc::syntax::SyntaxKind::FailureSpecification)
+        specification = &child;
+      else if (child.kind() == vixc::syntax::SyntaxKind::ReturnStatement)
+        statement = &child;
+    }
+
+    assert(return_type != nullptr);
+    assert(declarator != nullptr);
+    assert(specification != nullptr);
+    assert(statement != nullptr);
+
+    assert(source_text(source, return_type->range()) == "int");
+    assert(source_text(source, declarator->range()) == "divide(int a, int b)");
+    assert(source_text(source, statement->range()) == "return a / b;");
+
+    assert(statement->child_count() == 1);
+    const vixc::syntax::SyntaxNode *operand = statement->child(0);
+    assert(operand != nullptr);
+    assert(source_text(source, operand->range()) == "a / b");
+  }
+
+  void test_failure_aware_function_bodies_remain_separate()
+  {
+    const std::string source =
+        "int first() fails int { return 1; }\n"
+        "int second() fails int { return 2; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+    assert(root.child_count() == 2);
+
+    for (std::size_t index = 0; index < root.child_count(); ++index)
+    {
+      const vixc::syntax::SyntaxNode *function = root.child(index);
+      assert(function != nullptr);
+      assert(function->kind() == vixc::syntax::SyntaxKind::FunctionDeclaration);
+
+      std::size_t return_count = 0;
+      for (const vixc::syntax::SyntaxNode &child : function->children())
+      {
+        if (child.kind() == vixc::syntax::SyntaxKind::ReturnStatement)
+          ++return_count;
+      }
+
+      assert(return_count == 1);
+    }
+  }
+
+  void test_failure_aware_function_retains_multi_token_success_type()
+  {
+    const std::string source =
+        "std::string name() fails Error { return \"x\"; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+    assert(root.child_count() == 1);
+
+    const vixc::syntax::SyntaxNode *function = root.child(0);
+    assert(function != nullptr);
+
+    const vixc::syntax::SyntaxNode *return_type = nullptr;
+    const vixc::syntax::SyntaxNode *declarator = nullptr;
+    for (const vixc::syntax::SyntaxNode &child : function->children())
+    {
+      if (child.kind() == vixc::syntax::SyntaxKind::FunctionReturnType)
+        return_type = &child;
+      else if (child.kind() == vixc::syntax::SyntaxKind::FunctionDeclarator)
+        declarator = &child;
+    }
+
+    assert(return_type != nullptr);
+    assert(declarator != nullptr);
+    assert(source_text(source, return_type->range()) == "std::string");
+    assert(source_text(source, declarator->range()) == "name()");
+  }
+
 } // namespace
 
 int main()
@@ -760,6 +880,9 @@ int main()
 
   test_ranges_use_original_source_offsets();
   test_parser_preserves_source_identity();
+  test_failure_aware_function_retains_return_structure();
+  test_failure_aware_function_bodies_remain_separate();
+  test_failure_aware_function_retains_multi_token_success_type();
 
   return 0;
 }

@@ -25,11 +25,13 @@
 #include "../../src/syntax/SyntaxNode.hpp"
 #include "../../src/syntax/Token.hpp"
 
+#include <vixc/Diagnostic.hpp>
 #include <vixc/SourceRange.hpp>
 
 #include <cassert>
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -82,6 +84,66 @@ namespace
     }
 
     return nullptr;
+  }
+
+  std::size_t diagnostic_count(
+      const vixc::diagnostics::DiagnosticEngine &diagnostics,
+      std::string_view code)
+  {
+    std::size_t count = 0;
+
+    for (const vixc::Diagnostic &diagnostic :
+         diagnostics.diagnostics())
+    {
+      if (diagnostic.code() == code)
+        ++count;
+    }
+
+    return count;
+  }
+
+  const vixc::Diagnostic *find_diagnostic(
+      const vixc::diagnostics::DiagnosticEngine &diagnostics,
+      std::string_view code)
+  {
+    for (const vixc::Diagnostic &diagnostic :
+         diagnostics.diagnostics())
+    {
+      if (diagnostic.code() == code)
+        return &diagnostic;
+    }
+
+    return nullptr;
+  }
+
+  bool analyze_source(
+      const std::string &source,
+      vixc::diagnostics::DiagnosticEngine &diagnostics)
+  {
+    vixc::source::SourceManager sources;
+
+    const auto source_id =
+        sources.add_source(
+            "failure.vix",
+            source);
+
+    const SyntaxNode root =
+        parse(
+            source_id,
+            source,
+            diagnostics);
+
+    if (diagnostics.has_errors())
+      return false;
+
+    vixc::semantic::SemanticContext context{
+        sources,
+        diagnostics};
+
+    vixc::semantic::SemanticAnalyzer analyzer{
+        context};
+
+    return analyzer.analyze(root);
   }
 
   void test_default_outcome_model_is_success_only()
@@ -743,6 +805,177 @@ namespace
     assert(diagnostics.has_errors());
   }
 
+  void test_function_declaration_allows_fail()
+  {
+    const std::string source =
+        "enum class Error { Failed };\n"
+        "\n"
+        "int operation() fails Error\n"
+        "{\n"
+        "  fail Error::Failed;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+    assert(diagnostic_count(diagnostics, "VIXC2006") == 0);
+  }
+
+  void test_function_declaration_rejects_fail_without_fails()
+  {
+    const std::string source =
+        "int operation()\n"
+        "{\n"
+        "  fail 1;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2006") == 1);
+
+    const vixc::Diagnostic *diagnostic =
+        find_diagnostic(
+            diagnostics,
+            "VIXC2006");
+
+    assert(diagnostic != nullptr);
+    assert(diagnostic->has_hint());
+    assert(
+        diagnostic->hint() ==
+        "declare the containing function with `fails <ErrorType>`");
+  }
+
+  void test_function_failure_context_does_not_leak()
+  {
+    const std::string source =
+        "int first() fails int\n"
+        "{\n"
+        "  fail 1;\n"
+        "}\n"
+        "\n"
+        "int second()\n"
+        "{\n"
+        "  fail 2;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2006") == 1);
+  }
+
+  void test_function_declaration_allows_try()
+  {
+    const std::string source =
+        "int source() fails int\n"
+        "{\n"
+        "  fail 1;\n"
+        "}\n"
+        "\n"
+        "int wrapper() fails int\n"
+        "{\n"
+        "  auto value = try source();\n"
+        "  return value;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+    assert(diagnostic_count(diagnostics, "VIXC2014") == 0);
+  }
+
+  void test_try_in_normal_function_remains_rejected()
+  {
+    const std::string source =
+        "int source() fails int\n"
+        "{\n"
+        "  fail 1;\n"
+        "}\n"
+        "\n"
+        "int main()\n"
+        "{\n"
+        "  auto value = try source();\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2014") == 1);
+
+    const vixc::Diagnostic *diagnostic =
+        find_diagnostic(
+            diagnostics,
+            "VIXC2014");
+
+    assert(diagnostic != nullptr);
+    assert(diagnostic->has_hint());
+    assert(
+        diagnostic->hint() ==
+        "declare the containing function with `fails <ErrorType>`");
+  }
+
+  void test_nested_blocks_preserve_function_failure_context()
+  {
+    const std::string source =
+        "int operation(bool condition) fails int\n"
+        "{\n"
+        "  if (condition)\n"
+        "  {\n"
+        "    {\n"
+        "      fail 1;\n"
+        "    }\n"
+        "  }\n"
+        "\n"
+        "  return 0;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+    assert(diagnostic_count(diagnostics, "VIXC2006") == 0);
+  }
+
+  void test_math_error_declarations_have_independent_failure_contexts()
+  {
+    const std::string source =
+        "enum class MathError\n"
+        "{\n"
+        "  DivisionByZero\n"
+        "};\n"
+        "\n"
+        "int divide(int a, int b) fails MathError\n"
+        "{\n"
+        "  if (b == 0)\n"
+        "  {\n"
+        "    fail MathError::DivisionByZero;\n"
+        "  }\n"
+        "\n"
+        "  return a / b;\n"
+        "}\n"
+        "\n"
+        "int calculate() fails MathError\n"
+        "{\n"
+        "  auto value = try divide(10, 2);\n"
+        "  return value;\n"
+        "}\n"
+        "\n"
+        "int main()\n"
+        "{\n"
+        "  auto value = try calculate();\n"
+        "  return 0;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2006") == 0);
+    assert(diagnostic_count(diagnostics, "VIXC2014") == 1);
+  }
+
 } // namespace
 
 int main()
@@ -773,6 +1006,14 @@ int main()
 
   test_semantic_analyzer_accepts_plain_cpp();
   test_semantic_analyzer_rejects_fail_without_context();
+
+  test_function_declaration_allows_fail();
+  test_function_declaration_rejects_fail_without_fails();
+  test_function_failure_context_does_not_leak();
+  test_function_declaration_allows_try();
+  test_try_in_normal_function_remains_rejected();
+  test_nested_blocks_preserve_function_failure_context();
+  test_math_error_declarations_have_independent_failure_contexts();
 
   return 0;
 }

@@ -54,6 +54,12 @@ namespace vixc::semantic
     case syntax::SyntaxKind::TranslationUnit:
       return analyze_children(node);
 
+    case syntax::SyntaxKind::FunctionDeclaration:
+      return analyze_function_declaration(node);
+
+    case syntax::SyntaxKind::FunctionReturnType:
+    case syntax::SyntaxKind::FunctionDeclarator:
+
     case syntax::SyntaxKind::CxxRegion:
       return true;
 
@@ -72,9 +78,62 @@ namespace vixc::semantic
       failure::FailureAnalyzer analyzer{context_};
       return analyzer.analyze(node);
     }
+
+    case syntax::SyntaxKind::ReturnStatement:
+      return analyze_children(node);
     }
 
     return false;
+  }
+
+  bool SemanticAnalyzer::analyze_function_declaration(
+      const syntax::SyntaxNode &node)
+  {
+    const syntax::SyntaxNode *specification = nullptr;
+    std::size_t specification_index = 0;
+
+    for (std::size_t index = 0;
+         index < node.child_count();
+         ++index)
+    {
+      const syntax::SyntaxNode *child = node.child(index);
+      if (child != nullptr &&
+          child->kind() == syntax::SyntaxKind::FailureSpecification)
+      {
+        specification = child;
+        specification_index = index;
+        break;
+      }
+    }
+
+    if (specification == nullptr || specification->child_count() != 1)
+      return false;
+
+    failure::FailureAnalyzer analyzer{context_};
+    if (!analyzer.analyze(*specification))
+      return false;
+
+    const syntax::SyntaxNode *failure_type = specification->child(0);
+    if (failure_type == nullptr)
+      return false;
+
+    context_.push_failure_context(
+        FailureContext{
+            specification->range(),
+            failure_type->range()});
+
+    bool successful = true;
+    for (std::size_t index = specification_index + 1;
+         index < node.child_count();
+         ++index)
+    {
+      const syntax::SyntaxNode *child = node.child(index);
+      if (child != nullptr && !analyze_node(*child))
+        successful = false;
+    }
+
+    context_.pop_failure_context();
+    return successful;
   }
 
   bool SemanticAnalyzer::analyze_children(

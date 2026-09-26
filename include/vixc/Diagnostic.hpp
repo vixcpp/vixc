@@ -30,8 +30,8 @@ namespace vixc
    *
    * Diagnostic represents one frontend message independently from how that
    * message is displayed. It records the severity, human-readable message,
-   * optional stable diagnostic code, and the primary source range associated
-   * with the problem.
+   * optional stable diagnostic code, primary source range, and optional
+   * semantic hint associated with the problem.
    *
    * Diagnostics may originate from syntax analysis, semantic analysis,
    * lowering, backend processing, or other frontend stages. They are returned
@@ -113,6 +113,34 @@ namespace vixc
     }
 
     /**
+     * @brief Creates a diagnostic with a stable code, range, and semantic hint.
+     *
+     * The hint describes a semantically valid next step selected by the
+     * frontend stage that produced the diagnostic. Renderers may present it as
+     * supplemental guidance without having to understand diagnostic codes or
+     * language semantics themselves.
+     *
+     * @param severity Severity of the diagnostic.
+     * @param code Stable diagnostic identifier.
+     * @param message Human-readable diagnostic message.
+     * @param range Primary source range associated with the diagnostic.
+     * @param hint Optional semantic guidance for resolving the problem.
+     */
+    Diagnostic(
+        DiagnosticSeverity severity,
+        std::string code,
+        std::string message,
+        SourceRange range,
+        std::string hint)
+        : severity_(severity),
+          code_(std::move(code)),
+          message_(std::move(message)),
+          range_(range),
+          hint_(std::move(hint))
+    {
+    }
+
+    /**
      * @brief Returns the severity of the diagnostic.
      *
      * @return Diagnostic severity.
@@ -160,6 +188,30 @@ namespace vixc
     std::string_view message() const noexcept
     {
       return message_;
+    }
+
+    /**
+     * @brief Returns optional semantic guidance for resolving the diagnostic.
+     *
+     * An empty view means that the diagnostic does not provide a hint.
+     *
+     * @return Non-owning view of the diagnostic hint.
+     */
+    [[nodiscard]]
+    std::string_view hint() const noexcept
+    {
+      return hint_;
+    }
+
+    /**
+     * @brief Reports whether the diagnostic carries semantic guidance.
+     *
+     * @return true when hint() is not empty, otherwise false.
+     */
+    [[nodiscard]]
+    bool has_hint() const noexcept
+    {
+      return !hint_.empty();
     }
 
     /**
@@ -224,6 +276,9 @@ namespace vixc
 
     /// Primary source region associated with the diagnostic.
     SourceRange range_{};
+
+    /// Optional semantic guidance selected by the diagnostic producer.
+    std::string hint_;
   };
 
 } // namespace vixc

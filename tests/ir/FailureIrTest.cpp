@@ -17,6 +17,7 @@
 #include "../../src/ir/IrNode.hpp"
 #include "../../src/ir/Program.hpp"
 #include "../../src/ir/failure/Failure.hpp"
+#include "../../src/ir/failure/FailureAwareFunction.hpp"
 #include "../../src/ir/failure/Outcome.hpp"
 
 #include <vixc/SourceRange.hpp>
@@ -31,9 +32,11 @@ namespace
   using vixc::ir::IrNode;
   using vixc::ir::Program;
   using vixc::ir::failure::Failure;
+  using vixc::ir::failure::FailureAwareFunction;
   using vixc::ir::failure::FailurePropagation;
   using vixc::ir::failure::Outcome;
   using vixc::ir::failure::OutcomeState;
+  using vixc::ir::failure::Return;
 
   std::unique_ptr<IrNode>
   make_cxx_region(
@@ -57,6 +60,14 @@ namespace
     assert(
         vixc::ir::ir_kind_name(
             IrKind::CxxRegion) == std::string_view{"CxxRegion"});
+
+    assert(
+        vixc::ir::ir_kind_name(
+            IrKind::FailureAwareFunction) == std::string_view{"FailureAwareFunction"});
+
+    assert(
+        vixc::ir::ir_kind_name(
+            IrKind::Return) == std::string_view{"Return"});
 
     assert(
         vixc::ir::ir_kind_name(
@@ -873,6 +884,56 @@ namespace
     assert(node.child(0) == nullptr);
   }
 
+  void test_failure_aware_function_owns_contract_and_body()
+  {
+    auto outcome = std::make_unique<Outcome>(
+        vixc::SourceRange{0, 20, 35},
+        vixc::SourceRange{0, 26, 35});
+
+    FailureAwareFunction function{
+        vixc::SourceRange{0, 0, 70},
+        vixc::SourceRange{0, 0, 3},
+        vixc::SourceRange{0, 4, 19},
+        vixc::SourceRange{0, 36, 70},
+        std::move(outcome)};
+
+    assert(function.kind() == IrKind::FailureAwareFunction);
+    assert(function.valid());
+    assert(function.success_type_range() == vixc::SourceRange(0, 0, 3));
+    assert(function.declarator_range() == vixc::SourceRange(0, 4, 19));
+    assert(function.body_range() == vixc::SourceRange(0, 36, 70));
+    assert(function.outcome() != nullptr);
+    assert(function.outcome()->failure_type_range() == vixc::SourceRange(0, 26, 35));
+
+    function.add_child(std::make_unique<Failure>(
+        vixc::SourceRange{0, 42, 49},
+        vixc::SourceRange{0, 26, 35},
+        make_cxx_region(vixc::SourceRange{0, 47, 48})));
+    function.add_child(std::make_unique<Return>(
+        vixc::SourceRange{0, 52, 61},
+        make_cxx_region(vixc::SourceRange{0, 59, 60})));
+
+    assert(function.child_count() == 2);
+    assert(function.child(0)->kind() == IrKind::Failure);
+    assert(function.child(1)->kind() == IrKind::Return);
+  }
+
+  void test_return_requires_one_source_owned_operand()
+  {
+    Return statement{
+        vixc::SourceRange{0, 10, 19},
+        make_cxx_region(vixc::SourceRange{0, 17, 18})};
+
+    assert(statement.kind() == IrKind::Return);
+    assert(statement.valid());
+    assert(statement.operand() != nullptr);
+
+    Return missing_operand{
+        vixc::SourceRange{0, 10, 19},
+        nullptr};
+    assert(!missing_operand.valid());
+  }
+
 } // namespace
 
 int main()
@@ -917,6 +978,8 @@ int main()
 
   test_ir_node_owns_children();
   test_ir_node_without_children();
+  test_failure_aware_function_owns_contract_and_body();
+  test_return_requires_one_source_owned_operand();
 
   return 0;
 }

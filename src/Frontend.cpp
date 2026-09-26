@@ -21,6 +21,7 @@
 #include "ir/IrNode.hpp"
 #include "ir/Program.hpp"
 #include "ir/failure/Failure.hpp"
+#include "ir/failure/FailureAwareFunction.hpp"
 #include "ir/failure/Outcome.hpp"
 #include "lowering/LoweringContext.hpp"
 #include "lowering/LoweringPipeline.hpp"
@@ -55,6 +56,165 @@ namespace vixc
         const syntax::SyntaxNode &node,
         IrBuildContext &context,
         diagnostics::DiagnosticEngine &diagnostics);
+
+    std::unique_ptr<ir::IrNode>
+    build_failure_specification(
+        const syntax::SyntaxNode &node,
+        IrBuildContext &context,
+        diagnostics::DiagnosticEngine &diagnostics);
+
+    std::unique_ptr<ir::IrNode>
+    build_function_declaration(
+        const syntax::SyntaxNode &node,
+        diagnostics::DiagnosticEngine &diagnostics)
+    {
+      const syntax::SyntaxNode *success_type = nullptr;
+      const syntax::SyntaxNode *declarator = nullptr;
+      const syntax::SyntaxNode *specification = nullptr;
+      std::size_t specification_index = 0;
+
+      for (std::size_t index = 0;
+           index < node.child_count();
+           ++index)
+      {
+        const syntax::SyntaxNode *child = node.child(index);
+        if (child == nullptr)
+          continue;
+
+        if (child->kind() == syntax::SyntaxKind::FunctionReturnType)
+          success_type = child;
+        else if (child->kind() == syntax::SyntaxKind::FunctionDeclarator)
+          declarator = child;
+        else if (child->kind() == syntax::SyntaxKind::FailureSpecification)
+        {
+          specification = child;
+          specification_index = index;
+          break;
+        }
+      }
+
+      if (success_type == nullptr || declarator == nullptr ||
+          specification == nullptr)
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5015",
+            "failure-aware function has no structured declaration signature",
+            node.range());
+
+        return nullptr;
+      }
+
+      IrBuildContext function_context;
+
+      std::unique_ptr<ir::IrNode> contract_node =
+          build_failure_specification(
+              *specification,
+              function_context,
+              diagnostics);
+      auto *outcome = dynamic_cast<ir::failure::Outcome *>(
+          contract_node.get());
+
+      if (outcome == nullptr)
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5016",
+            "failure-aware function has an invalid Outcome contract",
+            specification->range());
+
+        return nullptr;
+      }
+
+      SourceRange body_range{};
+      if (specification_index + 1 < node.child_count())
+      {
+        const syntax::SyntaxNode *first_body =
+            node.child(specification_index + 1);
+        const syntax::SyntaxNode *last_body =
+            node.child(node.child_count() - 1);
+
+        if (first_body != nullptr && last_body != nullptr &&
+            first_body->range().valid() && last_body->range().valid())
+        {
+          body_range = SourceRange{
+              first_body->range().begin(),
+              last_body->range().end()};
+        }
+      }
+
+      auto function =
+          std::make_unique<ir::failure::FailureAwareFunction>(
+              node.range(),
+              success_type->range(),
+              declarator->range(),
+              body_range,
+              std::unique_ptr<ir::failure::Outcome>(
+                  static_cast<ir::failure::Outcome *>(
+                      contract_node.release())));
+
+      if (!function->valid())
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5017",
+            "unable to construct a valid failure-aware function IR node",
+            node.range());
+
+        return nullptr;
+      }
+
+      std::unique_ptr<ir::Program> surrounding_source;
+
+      for (const syntax::SyntaxNode &child : node.children())
+      {
+        if (&child == success_type || &child == declarator ||
+            &child == specification)
+        {
+          continue;
+        }
+
+        if (child.range().valid() &&
+            child.range().end_offset() <= specification->range().begin_offset())
+        {
+          std::unique_ptr<ir::IrNode> preserved = build_ir_node(
+              child,
+              function_context,
+              diagnostics);
+          if (!preserved)
+            return nullptr;
+
+          if (!surrounding_source)
+            surrounding_source = std::make_unique<ir::Program>();
+
+          surrounding_source->add(std::move(preserved));
+          continue;
+        }
+
+        std::unique_ptr<ir::IrNode> lowered =
+            build_ir_node(
+                child,
+                function_context,
+                diagnostics);
+        if (!lowered)
+        {
+          if (diagnostics.has_errors())
+            return nullptr;
+
+          continue;
+        }
+
+        function->add_child(std::move(lowered));
+      }
+
+      if (surrounding_source)
+      {
+        surrounding_source->add(std::move(function));
+        return surrounding_source;
+      }
+
+      return function;
+    }
 
     bool build_ir_children(
         const syntax::SyntaxNode &syntax_node,
@@ -299,6 +459,59 @@ namespace vixc
     }
 
     std::unique_ptr<ir::IrNode>
+    build_return_statement(
+        const syntax::SyntaxNode &node,
+        IrBuildContext &context,
+        diagnostics::DiagnosticEngine &diagnostics)
+    {
+      if (node.child_count() != 1)
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5018",
+            "return statement must contain exactly one operand",
+            node.range());
+
+        return nullptr;
+      }
+
+      const syntax::SyntaxNode *operand_syntax = node.child(0);
+      if (operand_syntax == nullptr)
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5019",
+            "return statement has no operand",
+            node.range());
+
+        return nullptr;
+      }
+
+      std::unique_ptr<ir::IrNode> operand = build_ir_node(
+          *operand_syntax,
+          context,
+          diagnostics);
+      if (!operand)
+        return nullptr;
+
+      auto statement = std::make_unique<ir::failure::Return>(
+          node.range(),
+          std::move(operand));
+      if (!statement->valid())
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5020",
+            "unable to construct a valid Return IR node",
+            node.range());
+
+        return nullptr;
+      }
+
+      return statement;
+    }
+
+    std::unique_ptr<ir::IrNode>
     build_ir_node(
         const syntax::SyntaxNode &node,
         IrBuildContext &context,
@@ -333,6 +546,11 @@ namespace vixc
         return program;
       }
 
+      case syntax::SyntaxKind::FunctionDeclaration:
+        return build_function_declaration(node, diagnostics);
+
+      case syntax::SyntaxKind::FunctionReturnType:
+      case syntax::SyntaxKind::FunctionDeclarator:
       case syntax::SyntaxKind::CxxRegion:
         return build_cxx_region(node);
 
@@ -352,6 +570,12 @@ namespace vixc
 
       case syntax::SyntaxKind::FailStatement:
         return build_fail_statement(
+            node,
+            context,
+            diagnostics);
+
+      case syntax::SyntaxKind::ReturnStatement:
+        return build_return_statement(
             node,
             context,
             diagnostics);

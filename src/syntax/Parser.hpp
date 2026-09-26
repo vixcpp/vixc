@@ -41,8 +41,9 @@ namespace vixc::syntax
    * original source while VixC constructs receive explicit syntax nodes.
    *
    * The first VixC syntax handled by the parser is the failure model:
-   * FailureSpecification for `fails`, FailStatement for `fail`, and
-   * TryExpression for failure propagation with `try`.
+   * FunctionDeclaration groups a C++ declaration prefix, FailureSpecification
+   * for `fails`, and its body; FailStatement represents `fail`; and
+   * TryExpression represents failure propagation with `try`.
    *
    * The parser is responsible only for source structure. It does not decide
    * whether a failure type is valid, whether `fail` appears inside a
@@ -205,6 +206,58 @@ namespace vixc::syntax
      */
     [[nodiscard]]
     SyntaxNode parse_cxx_region();
+
+    /**
+     * @brief Parses a failure-aware function declaration after its C++ prefix.
+     *
+     * The declaration owns the ordinary C++ signature, the `fails`
+     * specification, and all body fragments through the matching closing brace.
+     *
+     * @param declaration_prefix Ordinary C++ function signature before `fails`.
+     * @return FunctionDeclaration syntax node.
+     */
+    [[nodiscard]]
+    SyntaxNode parse_failure_aware_function_declaration(
+        SyntaxNode declaration_prefix);
+
+    /**
+     * @brief Parses a value-bearing return in a failure-aware function body.
+     *
+     * This parser intentionally recognizes `return expression;` only while
+     * FunctionDeclaration owns the enclosing body. Bare returns for `void`
+     * failure-aware functions remain outside the first Failure lowering slice.
+     *
+     * @return ReturnStatement syntax node.
+     */
+    [[nodiscard]]
+    SyntaxNode parse_return_statement();
+
+    /**
+     * @brief Finds the matching opening parenthesis for a closing parenthesis.
+     *
+     * @param closing_index Index of a RightParen token.
+     *
+     * @return Matching LeftParen token index, or tokens_.size() when absent.
+     */
+    [[nodiscard]]
+    std::size_t matching_left_paren(
+        std::size_t closing_index) const noexcept;
+
+    /**
+     * @brief Finds the first token of the final declaration prefix segment.
+     *
+     * The scan respects brace nesting so earlier complete declarations are not
+     * absorbed into the retained success return type of a `fails` declaration.
+     *
+     * @param begin_index First token of the opaque prefix region.
+     * @param end_index One past the final token before `fails`.
+     *
+     * @return First token of the final declaration segment.
+     */
+    [[nodiscard]]
+    std::size_t declaration_begin(
+        std::size_t begin_index,
+        std::size_t end_index) const noexcept;
 
     /**
      * @brief Parses a `fail` statement.

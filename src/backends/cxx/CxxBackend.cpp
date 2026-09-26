@@ -20,6 +20,7 @@
 #include "../../ir/IrNode.hpp"
 #include "../../ir/Program.hpp"
 #include "../../ir/failure/Failure.hpp"
+#include "../../ir/failure/FailureAwareFunction.hpp"
 #include "../../ir/failure/Outcome.hpp"
 #include "../../source/SourceFile.hpp"
 #include "../../source/SourceManager.hpp"
@@ -97,6 +98,27 @@ namespace vixc::backends::cxx
 
     case ir::IrKind::CxxRegion:
       return emit_cxx_region(node);
+
+    case ir::IrKind::FailureAwareFunction:
+    {
+      const auto *function = dynamic_cast<
+          const ir::failure::FailureAwareFunction *>(&node);
+      if (function == nullptr)
+      {
+        return report_error(
+            "VIXC4017",
+            "IR node marked as FailureAwareFunction has an incompatible concrete type",
+            node.range());
+      }
+
+      return emit_failure_aware_function(*function);
+    }
+
+    case ir::IrKind::Return:
+      return report_error(
+          "VIXC4018",
+          "Return IR requires declaration-level C++ lowering before emission",
+          node.range());
 
     case ir::IrKind::Outcome:
     {
@@ -267,6 +289,23 @@ namespace vixc::backends::cxx
     }
 
     return true;
+  }
+
+  bool CxxBackend::emit_failure_aware_function(
+      const ir::failure::FailureAwareFunction &function)
+  {
+    if (!function.valid())
+    {
+      return report_error(
+          "VIXC4019",
+          "invalid FailureAwareFunction IR reached the C++ backend",
+          function.range());
+    }
+
+    return report_error(
+        "VIXC4013",
+        "Failure-aware function requires declaration-level C++ lowering before emission",
+        function.range());
   }
 
   bool CxxBackend::emit_failure(

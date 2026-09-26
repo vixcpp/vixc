@@ -66,6 +66,27 @@ namespace vixc::syntax
     CxxRegion,
 
     /**
+     * @brief Function declaration that owns a `fails` specification and body.
+     *
+     * The declaration retains its success type and declarator as source-ranged
+     * children, its FailureSpecification, and ordered body fragments that may
+     * contain VixC failure constructs or value-bearing returns. This provides
+     * the declaration-scoped boundary required by semantic analysis without
+     * reproducing the full C++ grammar.
+     */
+    FunctionDeclaration,
+
+    /**
+     * @brief Success return type of a failure-aware function declaration.
+     */
+    FunctionReturnType,
+
+    /**
+     * @brief Name, parameters, and retained declarator source of a function.
+     */
+    FunctionDeclarator,
+
+    /**
      * @brief Identifier syntax.
      */
     Identifier,
@@ -122,6 +143,11 @@ namespace vixc::syntax
     FailStatement,
 
     /**
+     * @brief Return statement structurally owned by a failure-aware function.
+     */
+    ReturnStatement,
+
+    /**
      * @brief Failure-propagating expression introduced with `try`.
      *
      * A TryExpression evaluates another operation and propagates its failure
@@ -158,6 +184,15 @@ namespace vixc::syntax
     case SyntaxKind::CxxRegion:
       return "CxxRegion";
 
+    case SyntaxKind::FunctionDeclaration:
+      return "FunctionDeclaration";
+
+    case SyntaxKind::FunctionReturnType:
+      return "FunctionReturnType";
+
+    case SyntaxKind::FunctionDeclarator:
+      return "FunctionDeclarator";
+
     case SyntaxKind::Identifier:
       return "Identifier";
 
@@ -181,6 +216,9 @@ namespace vixc::syntax
 
     case SyntaxKind::FailStatement:
       return "FailStatement";
+
+    case SyntaxKind::ReturnStatement:
+      return "ReturnStatement";
 
     case SyntaxKind::TryExpression:
       return "TryExpression";

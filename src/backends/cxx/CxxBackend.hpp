@@ -50,6 +50,7 @@ namespace vixc::ir
 namespace vixc::ir::failure
 {
 
+  class FailureAwareFunction;
   class Outcome;
   class Failure;
   class FailurePropagation;
@@ -229,6 +230,20 @@ namespace vixc::backends::cxx
      */
     bool emit_cxx_region(
         const ir::IrNode &node);
+
+    /**
+     * @brief Rejects a function awaiting declaration-level Outcome lowering.
+     *
+     * STEP A retains enough information to perform that lowering later, but it
+     * must not emit a C++ declaration with the `fails` contract silently
+     * removed.
+     *
+     * @param function Failure-aware function IR node.
+     *
+     * @return false after reporting the existing unsupported-emission boundary.
+     */
+    bool emit_failure_aware_function(
+        const ir::failure::FailureAwareFunction &function);
 
     /**
      * @brief Emits the C++ representation required for an Outcome contract.

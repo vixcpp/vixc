@@ -107,6 +107,22 @@ namespace vixc::diagnostics
         SourceRange range);
 
     /**
+     * @brief Creates and stores a diagnostic with code, range, and hint.
+     *
+     * @param severity Severity of the diagnostic.
+     * @param code Stable diagnostic identifier.
+     * @param message Human-readable diagnostic message.
+     * @param range Primary source range associated with the diagnostic.
+     * @param hint Semantic guidance selected by the diagnostic producer.
+     */
+    void emit(
+        DiagnosticSeverity severity,
+        std::string code,
+        std::string message,
+        SourceRange range,
+        std::string hint);
+
+    /**
      * @brief Emits a note diagnostic.
      *
      * @param message Human-readable diagnostic message.

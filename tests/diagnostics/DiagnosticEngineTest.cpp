@@ -174,6 +174,32 @@ namespace
 
     assert(diagnostic.has_range());
     assert(diagnostic.range() == range);
+    assert(!diagnostic.has_hint());
+  }
+
+  void test_emit_with_code_range_and_hint()
+  {
+    vixc::diagnostics::DiagnosticEngine engine;
+
+    const vixc::SourceRange range{
+        1,
+        20,
+        27};
+
+    engine.emit(
+        vixc::DiagnosticSeverity::Error,
+        "VIXC9998",
+        "frontend failure",
+        range,
+        "correct the declaration");
+
+    assert(engine.size() == 1);
+
+    const vixc::Diagnostic &diagnostic =
+        engine.diagnostics()[0];
+
+    assert(diagnostic.has_hint());
+    assert(diagnostic.hint() == "correct the declaration");
   }
 
   void test_note_helper()
@@ -508,6 +534,7 @@ int main()
   test_emit_severity_and_message();
   test_emit_with_range();
   test_emit_with_code_and_range();
+  test_emit_with_code_range_and_hint();
 
   test_note_helper();
   test_warning_helper();

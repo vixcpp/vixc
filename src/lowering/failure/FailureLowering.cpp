@@ -244,9 +244,11 @@ namespace vixc::lowering::failure
       return lower(operand);
 
     case ir::IrKind::Program:
+    case ir::IrKind::FailureAwareFunction:
+    case ir::IrKind::Return:
       return report_error(
           "VIXC3117",
-          "Program IR cannot be used as a failure operand",
+          "container or statement IR cannot be used as a failure operand",
           operand.range());
     }
 

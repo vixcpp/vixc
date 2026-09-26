@@ -386,12 +386,13 @@ namespace
         valid.generated_output() == valid_source);
   }
 
-  void test_failure_declaration_currently_requires_scoped_semantics()
+  void test_failure_declaration_has_scoped_semantics()
   {
     const std::string source =
         "Result load() fails Error {\n"
         "  auto value = try read();\n"
         "  fail error;\n"
+        "  return value;\n"
         "}\n";
 
     vixc::Frontend frontend;
@@ -406,30 +407,18 @@ namespace
             source,
             options);
 
-    /*
-     * The current parser recognizes the failure specification, `try`, and
-     * `fail` constructs independently, but it does not yet represent the
-     * enclosing function declaration and body as one failure-aware syntax
-     * scope.
-     *
-     * SemanticAnalyzer therefore has no declaration-level scope in which to
-     * keep the failure contract active while analyzing `try` and `fail`.
-     *
-     * This test records that current frontend boundary. Once declaration-level
-     * failure scopes are represented, this test must become the first complete
-     * successful Failure pipeline test.
-     */
-    assert(!result.success());
-    assert(result.has_errors());
+    assert(result.success());
+    assert(!result.has_errors());
 
     assert(!result.has_generated_output());
   }
 
-  void test_failure_emit_does_not_bypass_semantic_errors()
+  void test_failure_emit_reaches_unsupported_backend_boundary()
   {
     const std::string source =
         "Result load() fails Error {\n"
         "  fail error;\n"
+        "  return value;\n"
         "}\n";
 
     vixc::Frontend frontend;
@@ -447,9 +436,19 @@ namespace
     assert(!result.success());
     assert(result.has_errors());
 
-    /*
-     * Backend generation must never happen after semantic failure.
-     */
+    bool found_unsupported_failure_emission = false;
+
+    for (const vixc::Diagnostic &diagnostic :
+         result.diagnostics())
+    {
+      if (diagnostic.code() == "VIXC4013")
+      {
+        found_unsupported_failure_emission = true;
+        break;
+      }
+    }
+
+    assert(found_unsupported_failure_emission);
     assert(!result.has_generated_output());
     assert(result.generated_output().empty());
   }
@@ -542,8 +541,8 @@ int main()
   test_frontend_can_be_reused();
   test_failed_invocation_does_not_poison_next_invocation();
 
-  test_failure_declaration_currently_requires_scoped_semantics();
-  test_failure_emit_does_not_bypass_semantic_errors();
+  test_failure_declaration_has_scoped_semantics();
+  test_failure_emit_reaches_unsupported_backend_boundary();
 
   test_result_keeps_diagnostics_after_frontend_returns();
   test_failure_diagnostic_has_source_range();

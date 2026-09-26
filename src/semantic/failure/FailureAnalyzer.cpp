@@ -21,6 +21,8 @@
 
 #include <vixc/DiagnosticSeverity.hpp>
 
+#include <utility>
+
 namespace vixc::semantic::failure
 {
   FailureAnalyzer::FailureAnalyzer(
@@ -104,7 +106,8 @@ namespace vixc::semantic::failure
       return report_error(
           "VIXC2006",
           "'fail' can only be used inside a failure-aware computation",
-          node.range());
+          node.range(),
+          "declare the containing function with `fails <ErrorType>`");
     }
 
     if (node.child_count() != 1)
@@ -185,7 +188,8 @@ namespace vixc::semantic::failure
       return report_error(
           "VIXC2014",
           "'try' can only propagate failure inside a failure-aware computation",
-          node.range());
+          node.range(),
+          "declare the containing function with `fails <ErrorType>`");
     }
 
     if (node.child_count() != 1)
@@ -297,13 +301,15 @@ namespace vixc::semantic::failure
   bool FailureAnalyzer::report_error(
       const char *code,
       const char *message,
-      SourceRange range)
+      SourceRange range,
+      std::string hint)
   {
     context_.diagnostics().emit(
         DiagnosticSeverity::Error,
         code,
         message,
-        range);
+        range,
+        std::move(hint));
 
     return false;
   }

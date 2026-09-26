@@ -107,9 +107,10 @@ namespace vixc::lowering
     /**
      * @brief Lowers one IR node.
      *
-     * Program nodes are traversed recursively. CxxRegion nodes require no common
-     * transformation. Failure-related IR kinds are delegated to
-     * FailureLowering.
+     * Program nodes are traversed recursively. Failure-aware function nodes
+     * validate their declaration contract before their ordered body nodes are
+     * traversed. CxxRegion nodes require no common transformation.
+     * Failure-related IR kinds are delegated to FailureLowering.
      *
      * @param node IR node to lower.
      *

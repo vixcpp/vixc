@@ -39,6 +39,7 @@
  */
 
 #include <vixc/Diagnostic.hpp>
+#include <vixc/DiagnosticRenderer.hpp>
 #include <vixc/DiagnosticSeverity.hpp>
 #include <vixc/Frontend.hpp>
 #include <vixc/FrontendOptions.hpp>

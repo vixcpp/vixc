@@ -61,6 +61,11 @@ vixc_add_test(
   diagnostics/DiagnosticEngineTest.cpp
 )
 
+vixc_add_test(
+  vixc_diagnostic_renderer_test
+  diagnostics/DiagnosticRendererTest.cpp
+)
+
 #
 # Syntax
 #
