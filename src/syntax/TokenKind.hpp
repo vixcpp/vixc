@@ -335,6 +335,9 @@ namespace vixc::syntax
 
     case TokenKind::KeywordTry:
       return "KeywordTry";
+
+    case TokenKind::KeywordReturn:
+      return "KeywordReturn";
     }
 
     return "Unknown";
