@@ -49,6 +49,7 @@ namespace vixc
     struct IrBuildContext final
     {
       std::optional<SourceRange> failure_type_range;
+      const semantic::SemanticContext *semantic_context{nullptr};
     };
 
     std::unique_ptr<ir::IrNode>
@@ -66,8 +67,10 @@ namespace vixc
     std::unique_ptr<ir::IrNode>
     build_function_declaration(
         const syntax::SyntaxNode &node,
+        IrBuildContext &context,
         diagnostics::DiagnosticEngine &diagnostics)
     {
+      const syntax::SyntaxNode *function_name = nullptr;
       const syntax::SyntaxNode *success_type = nullptr;
       const syntax::SyntaxNode *declarator = nullptr;
       const syntax::SyntaxNode *specification = nullptr;
@@ -83,6 +86,8 @@ namespace vixc
 
         if (child->kind() == syntax::SyntaxKind::FunctionReturnType)
           success_type = child;
+        else if (child->kind() == syntax::SyntaxKind::FunctionName)
+          function_name = child;
         else if (child->kind() == syntax::SyntaxKind::FunctionDeclarator)
           declarator = child;
         else if (child->kind() == syntax::SyntaxKind::FailureSpecification)
@@ -105,7 +110,7 @@ namespace vixc
         return nullptr;
       }
 
-      IrBuildContext function_context;
+      IrBuildContext function_context = context;
 
       std::unique_ptr<ir::IrNode> contract_node =
           build_failure_specification(
@@ -147,6 +152,7 @@ namespace vixc
           std::make_unique<ir::failure::FailureAwareFunction>(
               node.range(),
               success_type->range(),
+              function_name != nullptr ? function_name->range() : SourceRange{},
               declarator->range(),
               body_range,
               std::unique_ptr<ir::failure::Outcome>(
@@ -168,7 +174,8 @@ namespace vixc
 
       for (const syntax::SyntaxNode &child : node.children())
       {
-        if (&child == success_type || &child == declarator ||
+        if (&child == success_type || &child == function_name ||
+            &child == declarator ||
             &child == specification)
         {
           continue;
@@ -437,11 +444,36 @@ namespace vixc
       if (!operand)
         return nullptr;
 
+      if (context.semantic_context == nullptr)
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5023",
+            "failure propagation has no semantic resolution context",
+            node.range());
+        return nullptr;
+      }
+
+      const std::optional<semantic::FailurePropagationResolution> resolution =
+          context.semantic_context->failure_propagation_resolution(node.range());
+      if (!resolution.has_value())
+      {
+        diagnostics.emit(
+            DiagnosticSeverity::Error,
+            "VIXC5024",
+            "failure propagation was not resolved during semantic analysis",
+            node.range());
+        return nullptr;
+      }
+
       auto propagation =
           std::make_unique<
               ir::failure::FailurePropagation>(
               node.range(),
               *context.failure_type_range,
+              resolution->callee_id,
+              resolution->callee_declaration_range,
+              resolution->callee_failure_type_range,
               std::move(operand));
 
       if (!propagation->valid())
@@ -583,11 +615,13 @@ namespace vixc
       }
 
       case syntax::SyntaxKind::FunctionDeclaration:
-        return build_function_declaration(node, diagnostics);
+        return build_function_declaration(node, context, diagnostics);
 
       case syntax::SyntaxKind::FunctionReturnType:
+      case syntax::SyntaxKind::FunctionName:
       case syntax::SyntaxKind::FunctionDeclarator:
       case syntax::SyntaxKind::CxxRegion:
+      case syntax::SyntaxKind::DirectCallExpression:
         return build_cxx_region(node);
 
       case syntax::SyntaxKind::Identifier:
@@ -638,6 +672,7 @@ namespace vixc
     std::unique_ptr<ir::Program>
     build_program_ir(
         const syntax::SyntaxNode &root,
+        const semantic::SemanticContext &semantic_context,
         diagnostics::DiagnosticEngine &diagnostics)
     {
       if (
@@ -653,6 +688,7 @@ namespace vixc
       }
 
       IrBuildContext context;
+      context.semantic_context = &semantic_context;
 
       auto program =
           std::make_unique<ir::Program>(
@@ -812,6 +848,7 @@ namespace vixc
     std::unique_ptr<ir::Program> program =
         build_program_ir(
             syntax_root,
+            semantic_context,
             diagnostics);
 
     if (

@@ -18,8 +18,11 @@
 
 #include <vixc/SourceRange.hpp>
 
+#include "../ir/FailureFunctionId.hpp"
+
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -66,6 +69,44 @@ namespace vixc::semantic
      * @brief Source range containing the declared failure type.
      */
     SourceRange type_range{};
+  };
+
+  /** @brief One supported failure-aware definition collected from a translation unit. */
+  struct FailureFunctionDeclaration final
+  {
+    ir::FailureFunctionId id{};
+    std::string name;
+    SourceRange function_name_range{};
+    SourceRange declaration_range{};
+    SourceRange success_type_range{};
+    SourceRange declarator_range{};
+    SourceRange failure_type_range{};
+  };
+
+  /** @brief Result of looking up one direct failure-propagation target. */
+  enum class FailureFunctionLookupKind
+  {
+    Unknown,
+    Ambiguous,
+    Resolved
+  };
+
+  /** @brief Immutable details returned by failure-function lookup. */
+  struct FailureFunctionLookup final
+  {
+    FailureFunctionLookupKind kind{FailureFunctionLookupKind::Unknown};
+    ir::FailureFunctionId id{};
+    SourceRange declaration_range{};
+    SourceRange failure_type_range{};
+  };
+
+  /** @brief Semantic resolution attached to one `try` expression. */
+  struct FailurePropagationResolution final
+  {
+    SourceRange try_range{};
+    ir::FailureFunctionId callee_id{};
+    SourceRange callee_declaration_range{};
+    SourceRange callee_failure_type_range{};
   };
 
   /**
@@ -213,6 +254,37 @@ namespace vixc::semantic
     [[nodiscard]]
     const FailureContext *current_failure_context() const noexcept;
 
+    /** @brief Clears declarations and propagation resolutions for a new analysis. */
+    void clear_failure_declarations() noexcept;
+
+    /**
+     * @brief Registers one supported failure-aware function definition.
+     *
+     * Duplicate names are retained so lookup can report ambiguity without
+     * attempting C++ overload resolution.
+     */
+    ir::FailureFunctionId register_failure_function(
+        std::string name,
+        SourceRange function_name_range,
+        SourceRange declaration_range,
+        SourceRange success_type_range,
+        SourceRange declarator_range,
+        SourceRange failure_type_range);
+
+    /** @brief Looks up one unqualified failure-aware function name. */
+    [[nodiscard]]
+    FailureFunctionLookup lookup_failure_function(
+        std::string_view name) const noexcept;
+
+    /** @brief Stores successful resolution for one `try` expression. */
+    void record_failure_propagation_resolution(
+        FailurePropagationResolution resolution);
+
+    /** @brief Returns the recorded semantic resolution for one `try` expression. */
+    [[nodiscard]]
+    std::optional<FailurePropagationResolution>
+    failure_propagation_resolution(SourceRange try_range) const noexcept;
+
     /**
      * @brief Returns the number of active failure contexts.
      *
@@ -241,6 +313,12 @@ namespace vixc::semantic
 
     /// Nested failure contracts in semantic traversal order.
     std::vector<FailureContext> failure_contexts_;
+
+    /// Supported failure-aware function definitions collected for this unit.
+    std::vector<FailureFunctionDeclaration> failure_functions_;
+
+    /// Resolutions keyed by the stable source range of each try expression.
+    std::vector<FailurePropagationResolution> propagation_resolutions_;
   };
 
 } // namespace vixc::semantic

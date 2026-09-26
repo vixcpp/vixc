@@ -35,6 +35,24 @@ namespace vixc::ir::failure
   {
   }
 
+  FailureAwareFunction::FailureAwareFunction(
+      SourceRange range,
+      SourceRange success_type_range,
+      SourceRange function_name_range,
+      SourceRange declarator_range,
+      SourceRange body_range,
+      std::unique_ptr<Outcome> outcome)
+      : IrNode(
+            IrKind::FailureAwareFunction,
+            range),
+        success_type_range_(success_type_range),
+        function_name_range_(function_name_range),
+        declarator_range_(declarator_range),
+        body_range_(body_range),
+        outcome_(std::move(outcome))
+  {
+  }
+
   SourceRange
   FailureAwareFunction::success_type_range() const noexcept
   {
@@ -45,6 +63,12 @@ namespace vixc::ir::failure
   FailureAwareFunction::declarator_range() const noexcept
   {
     return declarator_range_;
+  }
+
+  SourceRange
+  FailureAwareFunction::function_name_range() const noexcept
+  {
+    return function_name_range_;
   }
 
   SourceRange
@@ -78,6 +102,15 @@ namespace vixc::ir::failure
         range().source_id() != declarator_range_.source_id() ||
         range().source_id() != body_range_.source_id() ||
         range().source_id() != outcome_->range().source_id())
+    {
+      return false;
+    }
+
+    if (function_name_range_.valid() &&
+        (function_name_range_.empty() ||
+         function_name_range_.source_id() != range().source_id() ||
+         function_name_range_.begin_offset() < declarator_range_.begin_offset() ||
+         function_name_range_.end_offset() > declarator_range_.end_offset()))
     {
       return false;
     }

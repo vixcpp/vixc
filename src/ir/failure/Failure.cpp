@@ -121,6 +121,25 @@ namespace vixc::ir::failure
         std::move(operand));
   }
 
+  FailurePropagation::FailurePropagation(
+      SourceRange range,
+      SourceRange failure_type_range,
+      FailureFunctionId callee_id,
+      SourceRange callee_declaration_range,
+      SourceRange callee_failure_type_range,
+      std::unique_ptr<IrNode> operand)
+      : IrNode(
+            IrKind::FailurePropagation,
+            range),
+        failure_type_range_(failure_type_range),
+        callee_id_(callee_id),
+        callee_declaration_range_(callee_declaration_range),
+        callee_failure_type_range_(callee_failure_type_range)
+  {
+    set_operand(
+        std::move(operand));
+  }
+
   IrNode *FailurePropagation::set_operand(
       std::unique_ptr<IrNode> operand)
   {
@@ -150,6 +169,27 @@ namespace vixc::ir::failure
   FailurePropagation::failure_type_range() const noexcept
   {
     return failure_type_range_;
+  }
+
+  bool FailurePropagation::has_resolved_callee() const noexcept
+  {
+    return callee_id_.valid() && callee_declaration_range_.valid() &&
+           callee_failure_type_range_.valid();
+  }
+
+  FailureFunctionId FailurePropagation::callee_id() const noexcept
+  {
+    return callee_id_;
+  }
+
+  SourceRange FailurePropagation::callee_declaration_range() const noexcept
+  {
+    return callee_declaration_range_;
+  }
+
+  SourceRange FailurePropagation::callee_failure_type_range() const noexcept
+  {
+    return callee_failure_type_range_;
   }
 
   bool FailurePropagation::valid() const noexcept

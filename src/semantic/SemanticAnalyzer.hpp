@@ -110,6 +110,26 @@ namespace vixc::semantic
     bool analyze_node(const syntax::SyntaxNode &node);
 
     /**
+     * @brief Collects supported top-level failure-aware function definitions.
+     *
+     * This phase intentionally records only declarations represented with a
+     * structural FunctionName and body, excluding unsupported C++ declarator
+     * forms from direct propagation lookup.
+     *
+     * @param root Translation-unit syntax node.
+     * @return true when collection completed without a fatal diagnostic.
+     */
+    bool collect_failure_declarations(const syntax::SyntaxNode &root);
+
+    /**
+     * @brief Collects one supported failure-aware function definition.
+     *
+     * @param node FunctionDeclaration syntax node.
+     * @return true when collection may continue.
+     */
+    bool collect_failure_declaration(const syntax::SyntaxNode &node);
+
+    /**
      * @brief Analyzes one declaration-scoped failure-aware function body.
      *
      * @param node FunctionDeclaration syntax node.

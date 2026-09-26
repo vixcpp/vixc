@@ -17,14 +17,47 @@
 
 #include "../../diagnostics/DiagnosticEngine.hpp"
 #include "../../syntax/SyntaxKind.hpp"
+#include "../../syntax/Lexer.hpp"
 #include "../../syntax/SyntaxNode.hpp"
+#include "../../syntax/Token.hpp"
 
 #include <vixc/DiagnosticSeverity.hpp>
 
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace vixc::semantic::failure
 {
+  namespace
+  {
+    std::optional<std::string>
+    normalized_failure_type(
+        SemanticContext &context,
+        SourceRange range)
+    {
+      const std::optional<std::string_view> source =
+          context.source_text(range);
+      if (!source.has_value())
+        return std::nullopt;
+
+      syntax::Lexer lexer{
+          range.source_id(),
+          *source,
+          context.diagnostics()};
+      const std::vector<syntax::Token> tokens = lexer.lex_all();
+
+      std::string normalized;
+      for (const syntax::Token &token : tokens)
+      {
+        if (!token.is_end_of_file())
+          normalized.append(token.text());
+      }
+
+      return normalized;
+    }
+  } // namespace
+
   FailureAnalyzer::FailureAnalyzer(
       SemanticContext &context) noexcept
       : context_(context)
@@ -258,6 +291,83 @@ namespace vixc::semantic::failure
           "active failure contract is invalid",
           node.range());
     }
+
+    if (operand->kind() != syntax::SyntaxKind::DirectCallExpression ||
+        operand->child_count() != 1)
+    {
+      return report_error(
+          "VIXC2025",
+          "'try' currently requires a direct call to a known failure-aware function",
+          node.range());
+    }
+
+    const syntax::SyntaxNode *callee = operand->child(0);
+    if (callee == nullptr || !callee->range().valid())
+    {
+      return report_error(
+          "VIXC2025",
+          "'try' has no structurally valid direct callee",
+          node.range());
+    }
+
+    const std::optional<std::string_view> callee_name =
+        context_.source_text(callee->range());
+    if (!callee_name.has_value() || callee_name->empty())
+    {
+      return report_error(
+          "VIXC2025",
+          "'try' has no structurally valid direct callee",
+          node.range());
+    }
+
+    const FailureFunctionLookup lookup =
+        context_.lookup_failure_function(*callee_name);
+    if (lookup.kind == FailureFunctionLookupKind::Unknown)
+    {
+      return report_error(
+          "VIXC2023",
+          "direct propagation target is not a known failure-aware function in this translation unit",
+          node.range());
+    }
+
+    if (lookup.kind == FailureFunctionLookupKind::Ambiguous)
+    {
+      return report_error(
+          "VIXC2024",
+          "cannot resolve direct propagation target without C++ overload resolution",
+          node.range());
+    }
+
+    const std::optional<std::string> caller_type =
+        normalized_failure_type(context_, failure_context->type_range);
+    const std::optional<std::string> callee_type =
+        normalized_failure_type(context_, lookup.failure_type_range);
+    if (!caller_type.has_value() || !callee_type.has_value())
+    {
+      return report_error(
+          "VIXC2025",
+          "unable to normalize a failure type for direct propagation",
+          node.range());
+    }
+
+    if (*caller_type != *callee_type)
+    {
+      const std::string message =
+          "cannot propagate failure type '" + *callee_type +
+          "' through a function that fails with '" + *caller_type + "'";
+      return report_error(
+          "VIXC2022",
+          message.c_str(),
+          node.range(),
+          "declare both functions with the same failure-type spelling for direct propagation");
+    }
+
+    context_.record_failure_propagation_resolution(
+        FailurePropagationResolution{
+            node.range(),
+            lookup.id,
+            lookup.declaration_range,
+            lookup.failure_type_range});
 
     return true;
   }

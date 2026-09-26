@@ -60,6 +60,24 @@ namespace vixc::ir::failure
         SourceRange body_range,
         std::unique_ptr<Outcome> outcome);
 
+    /**
+     * @brief Creates a function retaining its structural unqualified name.
+     *
+     * @param range Complete function declaration range.
+     * @param success_type_range Source spelling of the success return type.
+     * @param function_name_range Source spelling of the unqualified name.
+     * @param declarator_range Source spelling from function name through parameters.
+     * @param body_range Source range of the braced function body.
+     * @param outcome Declared Outcome contract owned by this function.
+     */
+    FailureAwareFunction(
+        SourceRange range,
+        SourceRange success_type_range,
+        SourceRange function_name_range,
+        SourceRange declarator_range,
+        SourceRange body_range,
+        std::unique_ptr<Outcome> outcome);
+
     FailureAwareFunction(const FailureAwareFunction &) = delete;
     FailureAwareFunction &operator=(const FailureAwareFunction &) = delete;
 
@@ -83,6 +101,10 @@ namespace vixc::ir::failure
      */
     [[nodiscard]]
     SourceRange declarator_range() const noexcept;
+
+    /** @brief Returns the structural unqualified function-name range. */
+    [[nodiscard]]
+    SourceRange function_name_range() const noexcept;
 
     /**
      * @brief Returns the braced body range.
@@ -123,6 +145,7 @@ namespace vixc::ir::failure
 
   private:
     SourceRange success_type_range_{};
+    SourceRange function_name_range_{};
     SourceRange declarator_range_{};
     SourceRange body_range_{};
     std::unique_ptr<Outcome> outcome_;

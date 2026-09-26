@@ -17,6 +17,7 @@
 #define VIXC_IR_FAILURE_FAILURE_HPP
 
 #include "../IrNode.hpp"
+#include "../FailureFunctionId.hpp"
 
 #include <vixc/SourceRange.hpp>
 
@@ -179,7 +180,8 @@ namespace vixc::ir::failure
    * being evaluated.
    *
    * failure_type_range() identifies the failure type of the enclosing
-   * computation after semantic compatibility has been established.
+   * computation. When direct-call resolution succeeds, the node also retains
+   * the opaque callee identity and its declaration-level failure contract.
    *
    * The SourceRange inherited from IrNode identifies the original `try`
    * expression.
@@ -211,6 +213,24 @@ namespace vixc::ir::failure
     FailurePropagation(
         SourceRange range,
         SourceRange failure_type_range,
+        std::unique_ptr<IrNode> operand);
+
+    /**
+     * @brief Creates a propagation node with resolved direct-callee metadata.
+     *
+     * @param range Original source range of the `try` expression.
+     * @param failure_type_range Source range of the enclosing failure type.
+     * @param callee_id Semantic identity of the resolved callee.
+     * @param callee_declaration_range Source range of the callee definition.
+     * @param callee_failure_type_range Source range of the callee failure type.
+     * @param operand IR node representing the propagated computation.
+     */
+    FailurePropagation(
+        SourceRange range,
+        SourceRange failure_type_range,
+        FailureFunctionId callee_id,
+        SourceRange callee_declaration_range,
+        SourceRange callee_failure_type_range,
         std::unique_ptr<IrNode> operand);
 
     FailurePropagation(const FailurePropagation &) = delete;
@@ -260,6 +280,22 @@ namespace vixc::ir::failure
     [[nodiscard]]
     SourceRange failure_type_range() const noexcept;
 
+    /** @brief Reports whether semantic direct-callee resolution is available. */
+    [[nodiscard]]
+    bool has_resolved_callee() const noexcept;
+
+    /** @brief Returns the identity assigned to the resolved direct callee. */
+    [[nodiscard]]
+    FailureFunctionId callee_id() const noexcept;
+
+    /** @brief Returns the original range of the resolved callee definition. */
+    [[nodiscard]]
+    SourceRange callee_declaration_range() const noexcept;
+
+    /** @brief Returns the declared failure type range of the resolved callee. */
+    [[nodiscard]]
+    SourceRange callee_failure_type_range() const noexcept;
+
     /**
      * @brief Reports whether this propagation node satisfies its structural
      * invariants.
@@ -280,6 +316,9 @@ namespace vixc::ir::failure
   private:
     /// Source range of the enclosing computation's declared failure type.
     SourceRange failure_type_range_{};
+    FailureFunctionId callee_id_{};
+    SourceRange callee_declaration_range_{};
+    SourceRange callee_failure_type_range_{};
   };
 
 } // namespace vixc::ir::failure

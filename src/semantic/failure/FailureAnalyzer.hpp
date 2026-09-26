@@ -149,8 +149,10 @@ namespace vixc::semantic::failure
      * The expression must occur inside an active failure-aware context and must
      * contain an operand.
      *
-     * Propagated failure-type compatibility is a semantic type-system concern
-     * and is not guessed from source spelling.
+     * The direct-call first slice resolves one collected failure-aware free
+     * function and accepts propagation only when caller and callee use the
+     * same token-normalized failure-type spelling. Full C++ type identity and
+     * conversion remain outside this analyzer.
      *
      * @param node TryExpression syntax node.
      *

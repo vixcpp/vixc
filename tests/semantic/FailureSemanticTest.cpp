@@ -517,6 +517,14 @@ namespace
             specification_range,
             type_range});
 
+    context.register_failure_function(
+        "read",
+        type_range,
+        specification_range,
+        type_range,
+        type_range,
+        type_range);
+
     FailureAnalyzer analyzer{
         context};
 
@@ -976,6 +984,102 @@ namespace
     assert(diagnostic_count(diagnostics, "VIXC2014") == 1);
   }
 
+  void test_forward_failure_propagation_resolves()
+  {
+    const std::string source =
+        "int wrapper() fails Error { auto value = try source(); return value; }\n"
+        "int source() fails Error { return 42; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+  }
+
+  void test_recursive_failure_propagation_resolves()
+  {
+    const std::string source =
+        "int recurse(int n) fails Error {\n"
+        "  if (n == 0) { return 0; }\n"
+        "  auto value = try recurse(n - 1);\n"
+        "  return value;\n"
+        "}\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+  }
+
+  void test_mutual_failure_propagation_resolves()
+  {
+    const std::string source =
+        "int a() fails Error { auto value = try b(); return value; }\n"
+        "int b() fails Error { auto value = try a(); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(analyze_source(source, diagnostics));
+    assert(!diagnostics.has_errors());
+  }
+
+  void test_incompatible_failure_propagation_is_rejected()
+  {
+    const std::string source =
+        "int source() fails ErrorA { return 42; }\n"
+        "int wrapper() fails ErrorB { auto value = try source(); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(!analyze_source(source, diagnostics));
+
+    const vixc::Diagnostic *diagnostic =
+        find_diagnostic(diagnostics, "VIXC2022");
+    assert(diagnostic != nullptr);
+    assert(diagnostic->range().begin_offset() == source.find("try source()"));
+    assert(diagnostic->has_hint());
+  }
+
+  void test_unknown_failure_propagation_is_rejected()
+  {
+    const std::string source =
+        "int wrapper() fails Error { auto value = try missing(); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2023") == 1);
+  }
+
+  void test_non_direct_failure_propagation_is_rejected()
+  {
+    const std::string source =
+        "int wrapper() fails Error { auto value = try ns::source(); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2025") == 1);
+  }
+
+  void test_duplicate_failure_function_name_is_ambiguous()
+  {
+    const std::string source =
+        "int source(int value) fails Error { return value; }\n"
+        "int source(double value) fails Error { return 0; }\n"
+        "int wrapper() fails Error { auto value = try source(1); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2024") == 1);
+  }
+
+  void test_alias_failure_spelling_is_conservatively_rejected()
+  {
+    const std::string source =
+        "using MyError = Error;\n"
+        "int source() fails MyError { return 42; }\n"
+        "int wrapper() fails Error { auto value = try source(); return value; }\n";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    assert(!analyze_source(source, diagnostics));
+    assert(diagnostic_count(diagnostics, "VIXC2022") == 1);
+  }
+
 } // namespace
 
 int main()
@@ -1014,6 +1118,14 @@ int main()
   test_try_in_normal_function_remains_rejected();
   test_nested_blocks_preserve_function_failure_context();
   test_math_error_declarations_have_independent_failure_contexts();
+  test_forward_failure_propagation_resolves();
+  test_recursive_failure_propagation_resolves();
+  test_mutual_failure_propagation_resolves();
+  test_incompatible_failure_propagation_is_rejected();
+  test_unknown_failure_propagation_is_rejected();
+  test_non_direct_failure_propagation_is_rejected();
+  test_duplicate_failure_function_name_is_ambiguous();
+  test_alias_failure_spelling_is_conservatively_rejected();
 
   return 0;
 }

@@ -934,6 +934,30 @@ namespace
     assert(!missing_operand.valid());
   }
 
+  void test_resolved_failure_propagation_retains_callee_contract()
+  {
+    const vixc::SourceRange propagation_range{0, 40, 50};
+    const vixc::SourceRange enclosing_type_range{0, 10, 15};
+    const vixc::SourceRange callee_range{0, 60, 90};
+    const vixc::SourceRange callee_type_range{0, 78, 83};
+    const vixc::SourceRange operand_range{0, 44, 50};
+
+    FailurePropagation propagation{
+        propagation_range,
+        enclosing_type_range,
+        vixc::ir::FailureFunctionId{7},
+        callee_range,
+        callee_type_range,
+        make_cxx_region(operand_range)};
+
+    assert(propagation.valid());
+    assert(propagation.has_resolved_callee());
+    assert(propagation.callee_id() == vixc::ir::FailureFunctionId{7});
+    assert(propagation.callee_declaration_range() == callee_range);
+    assert(propagation.callee_failure_type_range() == callee_type_range);
+    assert(propagation.failure_type_range() == enclosing_type_range);
+  }
+
 } // namespace
 
 int main()
@@ -972,6 +996,7 @@ int main()
   test_failure_propagation_rejects_null_operand();
 
   test_failure_propagation_requires_valid_contract();
+  test_resolved_failure_propagation_retains_callee_contract();
   test_failure_propagation_requires_same_source();
 
   test_program_accepts_failure_ir_nodes();

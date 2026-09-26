@@ -229,7 +229,7 @@ namespace vixc::syntax
     SyntaxNode specification = parse_failure_specification();
 
     std::vector<SyntaxNode> children;
-    children.reserve(6);
+    children.reserve(7);
     SourceRange declaration_range = prefix_range;
 
     std::size_t prefix_begin = tokens_.size();
@@ -276,6 +276,12 @@ namespace vixc::syntax
       children.push_back(SyntaxNode{
           SyntaxKind::FunctionReturnType,
           success_type_range});
+      if (has_supported_function_name(begin, parameter_open))
+      {
+        children.push_back(SyntaxNode{
+            SyntaxKind::FunctionName,
+            tokens_[parameter_open - 1].range()});
+      }
       children.push_back(SyntaxNode{
           SyntaxKind::FunctionDeclarator,
           range_from_tokens(parameter_open - 1, prefix_end)});
@@ -526,6 +532,88 @@ namespace vixc::syntax
     return tokens_.size();
   }
 
+  std::size_t Parser::matching_right_paren(
+      std::size_t opening_index) const noexcept
+  {
+    if (opening_index >= tokens_.size() ||
+        !tokens_[opening_index].is(TokenKind::LeftParen))
+    {
+      return tokens_.size();
+    }
+
+    std::size_t depth = 0;
+    for (std::size_t index = opening_index;
+         index < tokens_.size();
+         ++index)
+    {
+      if (tokens_[index].is(TokenKind::LeftParen))
+      {
+        ++depth;
+      }
+      else if (tokens_[index].is(TokenKind::RightParen))
+      {
+        --depth;
+        if (depth == 0)
+          return index;
+      }
+    }
+
+    return tokens_.size();
+  }
+
+  bool Parser::is_direct_call_expression(
+      std::size_t begin_index,
+      std::size_t end_index) const noexcept
+  {
+    if (begin_index + 2 > end_index ||
+        end_index > tokens_.size() ||
+        !tokens_[begin_index].is(TokenKind::Identifier) ||
+        !tokens_[begin_index + 1].is(TokenKind::LeftParen))
+    {
+      return false;
+    }
+
+    return matching_right_paren(begin_index + 1) == end_index - 1;
+  }
+
+  bool Parser::has_supported_function_name(
+      std::size_t begin_index,
+      std::size_t parameter_open) const noexcept
+  {
+    if (parameter_open == 0 || parameter_open > tokens_.size() ||
+        !tokens_[parameter_open - 1].is(TokenKind::Identifier))
+    {
+      return false;
+    }
+
+    if (parameter_open >= 2 &&
+        tokens_[parameter_open - 2].is(TokenKind::ColonColon))
+    {
+      return false;
+    }
+
+    for (std::size_t index = begin_index;
+         index < parameter_open;
+         ++index)
+    {
+      if (tokens_[index].is(TokenKind::LeftBrace) ||
+          tokens_[index].is(TokenKind::RightBrace) ||
+          tokens_[index].is(TokenKind::Semicolon))
+      {
+        return false;
+      }
+
+      if (tokens_[index].is(TokenKind::Identifier) &&
+          (tokens_[index].text() == "template" ||
+           tokens_[index].text() == "operator"))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   std::size_t Parser::declaration_begin(
       std::size_t begin_index,
       std::size_t end_index) const noexcept
@@ -759,10 +847,24 @@ namespace vixc::syntax
       return node;
     }
 
-    node.add_child(
-        make_cxx_region(
-            operand_begin,
-            operand_end));
+    if (is_direct_call_expression(operand_begin, operand_end))
+    {
+      SyntaxNode direct_call{
+          SyntaxKind::DirectCallExpression,
+          range_from_tokens(operand_begin, operand_end)};
+      direct_call.add_child(
+          make_cxx_region(
+              operand_begin,
+              operand_begin + 1));
+      node.add_child(std::move(direct_call));
+    }
+    else
+    {
+      node.add_child(
+          make_cxx_region(
+              operand_begin,
+              operand_end));
+    }
 
     return SyntaxNode{
         SyntaxKind::TryExpression,

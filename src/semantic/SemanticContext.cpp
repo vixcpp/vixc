@@ -117,6 +117,93 @@ namespace vixc::semantic
     return &failure_contexts_.back();
   }
 
+  void SemanticContext::clear_failure_declarations() noexcept
+  {
+    failure_functions_.clear();
+    propagation_resolutions_.clear();
+  }
+
+  ir::FailureFunctionId
+  SemanticContext::register_failure_function(
+      std::string name,
+      SourceRange function_name_range,
+      SourceRange declaration_range,
+      SourceRange success_type_range,
+      SourceRange declarator_range,
+      SourceRange failure_type_range)
+  {
+    const ir::FailureFunctionId id{failure_functions_.size()};
+    failure_functions_.push_back(
+        FailureFunctionDeclaration{
+            id,
+            std::move(name),
+            function_name_range,
+            declaration_range,
+            success_type_range,
+            declarator_range,
+            failure_type_range});
+    return id;
+  }
+
+  FailureFunctionLookup
+  SemanticContext::lookup_failure_function(
+      std::string_view name) const noexcept
+  {
+    const FailureFunctionDeclaration *candidate = nullptr;
+
+    for (const FailureFunctionDeclaration &function : failure_functions_)
+    {
+      if (function.name != name)
+        continue;
+
+      if (candidate != nullptr)
+      {
+        return FailureFunctionLookup{
+            FailureFunctionLookupKind::Ambiguous};
+      }
+
+      candidate = &function;
+    }
+
+    if (candidate == nullptr)
+      return FailureFunctionLookup{};
+
+    return FailureFunctionLookup{
+        FailureFunctionLookupKind::Resolved,
+        candidate->id,
+        candidate->declaration_range,
+        candidate->failure_type_range};
+  }
+
+  void SemanticContext::record_failure_propagation_resolution(
+      FailurePropagationResolution resolution)
+  {
+    for (FailurePropagationResolution &existing : propagation_resolutions_)
+    {
+      if (existing.try_range == resolution.try_range)
+      {
+        existing = resolution;
+        return;
+      }
+    }
+
+    propagation_resolutions_.push_back(std::move(resolution));
+  }
+
+  std::optional<FailurePropagationResolution>
+  SemanticContext::failure_propagation_resolution(
+      SourceRange try_range) const noexcept
+  {
+    for (const FailurePropagationResolution &resolution :
+         propagation_resolutions_)
+    {
+      if (resolution.try_range == try_range)
+        return resolution;
+    }
+
+    return std::nullopt;
+  }
+
   std::size_t
   SemanticContext::failure_context_depth() const noexcept
   {

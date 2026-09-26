@@ -842,6 +842,31 @@ namespace
     assert(!text.has_value());
   }
 
+  void test_resolved_failure_propagation_is_lowered_without_lookup()
+  {
+    const std::string source =
+        "Error call()";
+
+    vixc::source::SourceManager sources;
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const auto source_id = sources.add_source("failure.vix", source);
+
+    FailurePropagation propagation{
+        vixc::SourceRange{source_id, 6, 12},
+        vixc::SourceRange{source_id, 0, 5},
+        vixc::ir::FailureFunctionId{0},
+        vixc::SourceRange{source_id, 0, 5},
+        vixc::SourceRange{source_id, 0, 5},
+        make_cxx_region(vixc::SourceRange{source_id, 6, 12})};
+
+    LoweringContext context{sources, diagnostics};
+    FailureLowering lowering{context};
+
+    assert(propagation.has_resolved_callee());
+    assert(lowering.lower(propagation));
+    assert(!diagnostics.has_errors());
+  }
+
   void test_synthetic_identifiers_are_deterministic()
   {
     vixc::source::SourceManager sources;
@@ -884,6 +909,7 @@ int main()
   test_failure_requires_failure_type_source();
 
   test_valid_failure_propagation_is_lowered();
+  test_resolved_failure_propagation_is_lowered_without_lookup();
   test_failure_propagation_without_operand_is_rejected();
   test_failure_propagation_requires_failure_type_source();
 

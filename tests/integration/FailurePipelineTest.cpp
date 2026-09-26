@@ -389,6 +389,10 @@ namespace
   void test_failure_declaration_has_scoped_semantics()
   {
     const std::string source =
+        "Result read() fails Error {\n"
+        "  return value;\n"
+        "}\n"
+        "\n"
         "Result load() fails Error {\n"
         "  auto value = try read();\n"
         "  fail error;\n"
@@ -508,6 +512,30 @@ namespace
         std::string_view::npos);
   }
 
+  void test_incompatible_propagation_stops_before_cxx_emission()
+  {
+    const std::string source =
+        "int source() fails ErrorA { return 42; }\n"
+        "int wrapper() fails ErrorB { auto value = try source(); return value; }\n";
+
+    vixc::Frontend frontend;
+    const vixc::FrontendResult result =
+        frontend.process("failure.cpp", source);
+
+    assert(!result.success());
+    assert(result.has_errors());
+    assert(!result.has_generated_output());
+
+    bool found_incompatible_propagation = false;
+    for (const vixc::Diagnostic &diagnostic : result.diagnostics())
+    {
+      if (diagnostic.code() == "VIXC2022")
+        found_incompatible_propagation = true;
+    }
+
+    assert(found_incompatible_propagation);
+  }
+
   void test_result_keeps_diagnostics_after_frontend_returns()
   {
     vixc::Frontend frontend;
@@ -599,6 +627,7 @@ int main()
   test_failure_declaration_has_scoped_semantics();
   test_failure_emit_uses_lowered_function_representation();
   test_failure_emit_preserves_signatures_after_cpp_prelude();
+  test_incompatible_propagation_stops_before_cxx_emission();
 
   test_result_keeps_diagnostics_after_frontend_returns();
   test_failure_diagnostic_has_source_range();

@@ -269,6 +269,47 @@ namespace vixc::syntax
         std::size_t closing_index) const noexcept;
 
     /**
+     * @brief Finds the matching closing parenthesis for an opening parenthesis.
+     *
+     * @param opening_index Index of a LeftParen token.
+     * @return Matching RightParen token index, or tokens_.size() when absent.
+     */
+    [[nodiscard]]
+    std::size_t matching_right_paren(
+        std::size_t opening_index) const noexcept;
+
+    /**
+     * @brief Reports whether an operand token interval is a simple direct call.
+     *
+     * Supported direct calls begin with one identifier and end at that
+     * identifier's matching call parenthesis.
+     *
+     * @param begin_index First operand token.
+     * @param end_index One past the final operand token.
+     * @return true when the interval is a supported direct call.
+     */
+    [[nodiscard]]
+    bool is_direct_call_expression(
+        std::size_t begin_index,
+        std::size_t end_index) const noexcept;
+
+    /**
+     * @brief Reports whether a declaration has a supported free-function name.
+     *
+     * This excludes template, scope-qualified, nested, and operator declarator
+     * forms from the Step C direct-call registry without interpreting ordinary
+     * C++ declarator syntax beyond the required boundary.
+     *
+     * @param begin_index First declaration-prefix token.
+     * @param parameter_open Opening parameter parenthesis token.
+     * @return true when the final identifier is a supported function name.
+     */
+    [[nodiscard]]
+    bool has_supported_function_name(
+        std::size_t begin_index,
+        std::size_t parameter_open) const noexcept;
+
+    /**
      * @brief Finds the first token of the final declaration prefix segment.
      *
      * The scan respects brace nesting so earlier complete declarations are not

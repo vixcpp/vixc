@@ -21,6 +21,8 @@
 #include "../syntax/SyntaxKind.hpp"
 #include "../syntax/SyntaxNode.hpp"
 
+#include <string>
+
 namespace vixc::semantic
 {
   SemanticAnalyzer::SemanticAnalyzer(
@@ -34,6 +36,14 @@ namespace vixc::semantic
   {
     if (context_.diagnostics().has_fatal())
       return false;
+
+    context_.clear_failure_declarations();
+
+    if (root.kind() == syntax::SyntaxKind::TranslationUnit &&
+        !collect_failure_declarations(root))
+    {
+      return false;
+    }
 
     analyze_node(root);
 
@@ -59,6 +69,7 @@ namespace vixc::semantic
 
     case syntax::SyntaxKind::FunctionReturnType:
     case syntax::SyntaxKind::FunctionDeclarator:
+    case syntax::SyntaxKind::FunctionName:
 
     case syntax::SyntaxKind::CxxRegion:
       return true;
@@ -69,6 +80,7 @@ namespace vixc::semantic
     case syntax::SyntaxKind::StringLiteral:
     case syntax::SyntaxKind::CharacterLiteral:
     case syntax::SyntaxKind::ParenthesizedExpression:
+    case syntax::SyntaxKind::DirectCallExpression:
       return analyze_children(node);
 
     case syntax::SyntaxKind::FailureSpecification:
@@ -85,6 +97,77 @@ namespace vixc::semantic
     }
 
     return false;
+  }
+
+  bool SemanticAnalyzer::collect_failure_declarations(
+      const syntax::SyntaxNode &root)
+  {
+    for (const syntax::SyntaxNode &child : root.children())
+    {
+      if (context_.diagnostics().has_fatal())
+        return false;
+
+      if (child.kind() == syntax::SyntaxKind::FunctionDeclaration &&
+          !collect_failure_declaration(child))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool SemanticAnalyzer::collect_failure_declaration(
+      const syntax::SyntaxNode &node)
+  {
+    const syntax::SyntaxNode *name = nullptr;
+    const syntax::SyntaxNode *success_type = nullptr;
+    const syntax::SyntaxNode *declarator = nullptr;
+    const syntax::SyntaxNode *specification = nullptr;
+    std::size_t specification_index = 0;
+
+    for (std::size_t index = 0; index < node.child_count(); ++index)
+    {
+      const syntax::SyntaxNode *child = node.child(index);
+      if (child == nullptr)
+        continue;
+
+      if (child->kind() == syntax::SyntaxKind::FunctionName)
+        name = child;
+      else if (child->kind() == syntax::SyntaxKind::FunctionReturnType)
+        success_type = child;
+      else if (child->kind() == syntax::SyntaxKind::FunctionDeclarator)
+        declarator = child;
+      else if (child->kind() == syntax::SyntaxKind::FailureSpecification)
+      {
+        specification = child;
+        specification_index = index;
+      }
+    }
+
+    if (name == nullptr || success_type == nullptr || declarator == nullptr ||
+        specification == nullptr || specification->child_count() != 1 ||
+        specification_index + 1 >= node.child_count())
+    {
+      return true;
+    }
+
+    const syntax::SyntaxNode *failure_type = specification->child(0);
+    if (failure_type == nullptr)
+      return true;
+
+    const auto name_text = context_.source_text(name->range());
+    if (!name_text.has_value() || name_text->empty())
+      return true;
+
+    context_.register_failure_function(
+        std::string{*name_text},
+        name->range(),
+        node.range(),
+        success_type->range(),
+        declarator->range(),
+        failure_type->range());
+    return true;
   }
 
   bool SemanticAnalyzer::analyze_function_declaration(

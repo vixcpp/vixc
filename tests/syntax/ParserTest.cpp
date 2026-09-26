@@ -791,6 +791,7 @@ namespace
     assert(function->kind() == vixc::syntax::SyntaxKind::FunctionDeclaration);
 
     const vixc::syntax::SyntaxNode *return_type = nullptr;
+    const vixc::syntax::SyntaxNode *function_name = nullptr;
     const vixc::syntax::SyntaxNode *declarator = nullptr;
     const vixc::syntax::SyntaxNode *specification = nullptr;
     const vixc::syntax::SyntaxNode *statement = nullptr;
@@ -799,6 +800,8 @@ namespace
     {
       if (child.kind() == vixc::syntax::SyntaxKind::FunctionReturnType)
         return_type = &child;
+      else if (child.kind() == vixc::syntax::SyntaxKind::FunctionName)
+        function_name = &child;
       else if (child.kind() == vixc::syntax::SyntaxKind::FunctionDeclarator)
         declarator = &child;
       else if (child.kind() == vixc::syntax::SyntaxKind::FailureSpecification)
@@ -808,11 +811,13 @@ namespace
     }
 
     assert(return_type != nullptr);
+    assert(function_name != nullptr);
     assert(declarator != nullptr);
     assert(specification != nullptr);
     assert(statement != nullptr);
 
     assert(source_text(source, return_type->range()) == "int");
+    assert(source_text(source, function_name->range()) == "divide");
     assert(source_text(source, declarator->range()) == "divide(int a, int b)");
     assert(source_text(source, statement->range()) == "return a / b;");
 
@@ -879,6 +884,60 @@ namespace
     assert(declarator != nullptr);
     assert(source_text(source, return_type->range()) == "std::string");
     assert(source_text(source, declarator->range()) == "name()");
+  }
+
+  void test_try_initialization_retains_direct_call()
+  {
+    const std::string source =
+        "int wrapper() fails Error { auto value = try source(1, 2); return value; }";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+
+    const vixc::syntax::SyntaxNode *initialization = nullptr;
+    for (const vixc::syntax::SyntaxNode &child : root.child(0)->children())
+    {
+      if (child.kind() == vixc::syntax::SyntaxKind::TryInitialization)
+        initialization = &child;
+    }
+
+    assert(initialization != nullptr);
+    assert(initialization->child_count() == 2);
+    const vixc::syntax::SyntaxNode *try_expression = initialization->child(1);
+    assert(try_expression != nullptr);
+    assert(try_expression->child_count() == 1);
+    const vixc::syntax::SyntaxNode *call = try_expression->child(0);
+    assert(call != nullptr);
+    assert(call->kind() == vixc::syntax::SyntaxKind::DirectCallExpression);
+    assert(source_text(source, call->range()) == "source(1, 2)");
+    assert(call->child_count() == 1);
+    assert(source_text(source, call->child(0)->range()) == "source");
+  }
+
+  void test_non_direct_try_operand_is_not_a_direct_call()
+  {
+    const std::string source =
+        "int wrapper() fails Error { auto value = try ns::source(); return value; }";
+
+    vixc::diagnostics::DiagnosticEngine diagnostics;
+    const vixc::syntax::SyntaxNode root = parse(source, diagnostics);
+
+    assert(!diagnostics.has_errors());
+
+    const vixc::syntax::SyntaxNode *try_expression = nullptr;
+    for (const vixc::syntax::SyntaxNode &child : root.child(0)->children())
+    {
+      if (child.kind() == vixc::syntax::SyntaxKind::TryInitialization)
+        try_expression = child.child(1);
+    }
+
+    assert(try_expression != nullptr);
+    assert(try_expression->child_count() == 1);
+    assert(
+        try_expression->child(0)->kind() ==
+        vixc::syntax::SyntaxKind::CxxRegion);
   }
 
   void test_failure_aware_functions_following_cpp_preserve_signatures()
@@ -1040,6 +1099,8 @@ int main()
   test_failure_aware_function_retains_return_structure();
   test_failure_aware_function_bodies_remain_separate();
   test_failure_aware_function_retains_multi_token_success_type();
+  test_try_initialization_retains_direct_call();
+  test_non_direct_try_operand_is_not_a_direct_call();
   test_failure_aware_functions_following_cpp_preserve_signatures();
 
   return 0;

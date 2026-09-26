@@ -87,6 +87,11 @@ namespace vixc::syntax
     FunctionDeclarator,
 
     /**
+     * @brief Unqualified name of a supported failure-aware free function.
+     */
+    FunctionName,
+
+    /**
      * @brief Identifier syntax.
      */
     Identifier,
@@ -151,6 +156,14 @@ namespace vixc::syntax
     TryInitialization,
 
     /**
+     * @brief Direct unqualified call eligible for Failure propagation.
+     *
+     * The node range covers the complete call. Its first child retains the
+     * callee name range while arguments remain ordinary C++ source.
+     */
+    DirectCallExpression,
+
+    /**
      * @brief Failure-propagating expression introduced with `try`.
      *
      * A TryExpression evaluates another operation and propagates its failure
@@ -196,6 +209,9 @@ namespace vixc::syntax
     case SyntaxKind::FunctionDeclarator:
       return "FunctionDeclarator";
 
+    case SyntaxKind::FunctionName:
+      return "FunctionName";
+
     case SyntaxKind::Identifier:
       return "Identifier";
 
@@ -225,6 +241,9 @@ namespace vixc::syntax
 
     case SyntaxKind::TryInitialization:
       return "TryInitialization";
+
+    case SyntaxKind::DirectCallExpression:
+      return "DirectCallExpression";
 
     case SyntaxKind::TryExpression:
       return "TryExpression";
@@ -262,7 +281,7 @@ namespace vixc::syntax
   constexpr bool
   syntax_kind_is_expression(SyntaxKind kind) noexcept
   {
-    return kind == SyntaxKind::Identifier || syntax_kind_is_literal(kind) || kind == SyntaxKind::ParenthesizedExpression || kind == SyntaxKind::TryExpression;
+    return kind == SyntaxKind::Identifier || syntax_kind_is_literal(kind) || kind == SyntaxKind::ParenthesizedExpression || kind == SyntaxKind::DirectCallExpression || kind == SyntaxKind::TryExpression;
   }
 
   /**
